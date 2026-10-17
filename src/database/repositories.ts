@@ -1,6 +1,7 @@
 import { getDatabase } from './client';
 import { AppSettings, SchedulePeriod, WorkoutSession } from '../domain/models';
 import { comparisonKey, repsPerRound, totalReps } from '../domain/scoring';
+import { addDays, localDate } from '../domain/dates';
 
 type SessionRow = Record<string, unknown>;
 const mapSession = (row: SessionRow): WorkoutSession => ({
@@ -38,24 +39,51 @@ export const saveSession = async (session: WorkoutSession) => {
 };
 export const deleteSession = async (id: string) => (await getDatabase()).runAsync('DELETE FROM workout_sessions WHERE id = ?', id);
 
-const defaults: AppSettings = { onboardingComplete: false, remindersEnabled: false, reminderTime: '18:00', trackingStartDate: new Date().toISOString().slice(0, 10) };
+export const defaultSettings: AppSettings = {
+  onboardingComplete: false, remindersEnabled: false, reminderTime: '18:00',
+  trackingStartDate: localDate(), timerDisplay: 'numeric',
+  workoutLayout: 'detailed', themeIntensity: 'vibrant', hapticsEnabled: true,
+  soundsEnabled: false, reduceMotion: false,
+};
+export const normalizeSettings = (value: Partial<AppSettings> = {}): AppSettings => {
+  const merged = { ...defaultSettings, ...value };
+  return {
+    ...merged,
+    onboardingComplete: typeof merged.onboardingComplete === 'boolean' ? merged.onboardingComplete : defaultSettings.onboardingComplete,
+    remindersEnabled: typeof merged.remindersEnabled === 'boolean' ? merged.remindersEnabled : defaultSettings.remindersEnabled,
+    reminderTime: typeof merged.reminderTime === 'string' ? merged.reminderTime : defaultSettings.reminderTime,
+    trackingStartDate: typeof merged.trackingStartDate === 'string' ? merged.trackingStartDate : defaultSettings.trackingStartDate,
+    timerDisplay: merged.timerDisplay === 'circular' ? 'circular' : 'numeric',
+    workoutLayout: merged.workoutLayout === 'compact' ? 'compact' : 'detailed',
+    themeIntensity: merged.themeIntensity === 'discreet' || merged.themeIntensity === 'contrast' ? merged.themeIntensity : 'vibrant',
+    hapticsEnabled: typeof merged.hapticsEnabled === 'boolean' ? merged.hapticsEnabled : defaultSettings.hapticsEnabled,
+    soundsEnabled: typeof merged.soundsEnabled === 'boolean' ? merged.soundsEnabled : defaultSettings.soundsEnabled,
+    reduceMotion: typeof merged.reduceMotion === 'boolean' ? merged.reduceMotion : defaultSettings.reduceMotion,
+  };
+};
 export const getSettings = async () => {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
-  return rows.reduce((settings, row) => ({ ...settings, [row.key]: JSON.parse(row.value) }), defaults as AppSettings);
+  const stored = rows.reduce<Record<string, unknown>>((settings, row) => {
+    try { settings[row.key] = JSON.parse(row.value); } catch { /* retain the safe default */ }
+    return settings;
+  }, {});
+  return normalizeSettings(stored);
 };
 export const saveSettings = async (settings: AppSettings) => {
   const db = await getDatabase();
+  const normalized = normalizeSettings(settings);
   await db.withTransactionAsync(async () => {
-    for (const [key, value] of Object.entries(settings)) await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', key, JSON.stringify(value));
+    for (const [key, value] of Object.entries(normalized)) await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', key, JSON.stringify(value));
   });
+  return normalized;
 };
 export const getSchedule = async () => {
   const rows = await (await getDatabase()).getAllAsync<{ id: string; effective_from: string; weekdays_json: string }>('SELECT * FROM training_schedule_periods ORDER BY effective_from');
   return rows.map((row) => ({ id: row.id, effectiveFrom: row.effective_from, weekdays: JSON.parse(row.weekdays_json) }) as SchedulePeriod);
 };
 export const saveSchedule = async (weekdays: number[]) => {
-  const effectiveFrom = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const effectiveFrom = addDays(localDate(), 1);
   await saveSchedulePeriod({ id: `schedule-${Date.now()}`, effectiveFrom, weekdays });
 };
 export const saveSchedulePeriod = async (period: SchedulePeriod) =>

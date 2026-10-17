@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { localDate } from '../domain/dates';
 
 let database: SQLite.SQLiteDatabase | undefined;
 
@@ -28,7 +29,7 @@ export const getDatabase = async () => {
     `);
     const count = await database.getFirstAsync<{ count: number}>('SELECT COUNT(*) as count FROM training_schedule_periods');
     if (!count?.count) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDate();
       await database.runAsync('INSERT INTO training_schedule_periods (id, effective_from, weekdays_json) VALUES (?, ?, ?)', `schedule-${Date.now()}`, today, JSON.stringify([1, 3, 5]));
     }
   }

@@ -1,8 +1,7 @@
 import { SchedulePeriod, WorkoutSession } from './models';
+import { addDays, parseLocalDate } from './dates';
 
-const dateValue = (date: string) => new Date(`${date}T12:00:00`).getTime();
-const dayBefore = (date: string) => new Date(dateValue(date) - 86400000).toISOString().slice(0, 10);
-const weekday = (date: string) => new Date(dateValue(date)).getDay();
+const weekday = (date: string) => parseLocalDate(date).getDay();
 const scheduleFor = (date: string, periods: SchedulePeriod[]) =>
   [...periods].filter((period) => period.effectiveFrom <= date).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
 
@@ -19,28 +18,34 @@ export const calculateStreaks = (sessions: WorkoutSession[], periods: SchedulePe
   const completed = completedPlannedDates(sessions, periods);
   let current = 0;
   let cursor = today;
-  while (true) {
+  const firstScheduleDate = [...periods].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0]?.effectiveFrom ?? today;
+  while (cursor >= firstScheduleDate) {
     const schedule = scheduleFor(cursor, periods);
     const isPlanned = schedule?.weekdays.includes(weekday(cursor)) ?? false;
     if (isPlanned) {
       if (completed.has(cursor)) current += 1;
-      else if (cursor !== today || dateValue(today) < dateValue(new Date().toISOString().slice(0, 10))) break;
+      else break;
     }
-    cursor = dayBefore(cursor);
-    if (dateValue(today) - dateValue(cursor) > 366 * 86400000) break;
+    cursor = addDays(cursor, -1);
   }
   const allDates = [...completed].sort();
   let best = 0;
   let run = 0;
-  let previous: string | undefined;
-  for (const date of allDates) {
-    const schedule = scheduleFor(date, periods);
-    const planned = schedule?.weekdays.includes(weekday(date)) ?? false;
-    if (!planned) continue;
-    if (previous && dateValue(date) - dateValue(previous) <= 3 * 86400000) run += 1;
-    else run = 1;
-    best = Math.max(best, run);
-    previous = date;
+  if (allDates.length) {
+    let cursorDate = allDates[0];
+    const lastDate = allDates[allDates.length - 1];
+    while (cursorDate <= lastDate) {
+      const schedule = scheduleFor(cursorDate, periods);
+      if (schedule?.weekdays.includes(weekday(cursorDate))) {
+        if (completed.has(cursorDate)) {
+          run += 1;
+          best = Math.max(best, run);
+        } else {
+          run = 0;
+        }
+      }
+      cursorDate = addDays(cursorDate, 1);
+    }
   }
   return { current, best, completedDates: completed };
 };

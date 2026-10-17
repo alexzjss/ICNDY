@@ -53,4 +53,10 @@ export type AppSettings = {
   remindersEnabled: boolean;
   reminderTime: string;
   trackingStartDate: string;
+  timerDisplay: 'numeric' | 'circular';
+  workoutLayout: 'compact' | 'detailed';
+  themeIntensity: 'discreet' | 'vibrant' | 'contrast';
+  hapticsEnabled: boolean;
+  soundsEnabled: boolean;
+  reduceMotion: boolean;
 };

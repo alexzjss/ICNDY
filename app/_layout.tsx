@@ -6,13 +6,13 @@ import { Button } from "../src/components/ui";
 import { colors } from "../src/theme";
 
 function RootNavigator() {
-  const { isInitialized, initializationError, retryInitialization } = useApp();
+  const { isInitialized, initializationError, retryInitialization, settings, theme } = useApp();
 
   if (!isInitialized) {
     return (
       <View style={styles.bootstrap}>
         <Text style={styles.wordmark}>ICNDY</Text>
-        <ActivityIndicator color={colors.lime} />
+        <ActivityIndicator color={theme.lime} />
         <Text style={styles.message}>Preparing your local training log…</Text>
       </View>
     );
@@ -36,7 +36,8 @@ function RootNavigator() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: colors.ink },
+        animation: settings.reduceMotion ? "none" : "default",
+        contentStyle: { backgroundColor: theme.background },
       }}
     />
   );

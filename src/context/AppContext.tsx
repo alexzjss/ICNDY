@@ -12,8 +12,11 @@ import {
   getSettings,
   listSessions,
   saveSettings,
+  defaultSettings,
 } from "../database/repositories";
 import { AppSettings, SchedulePeriod, WorkoutSession } from "../domain/models";
+import { unloadFeedbackSound } from "../services/feedback";
+import { getThemeColors, ThemeColors } from "../theme";
 
 type ContextValue = {
   sessions: WorkoutSession[];
@@ -25,17 +28,13 @@ type ContextValue = {
   refresh: () => Promise<void>;
   retryInitialization: () => Promise<void>;
   updateSettings: (settings: AppSettings) => Promise<void>;
+  theme: ThemeColors;
 };
 const AppContext = createContext<ContextValue | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [active, setActive] = useState<WorkoutSession>();
-  const [settings, setSettings] = useState<AppSettings>({
-    onboardingComplete: false,
-    remindersEnabled: false,
-    reminderTime: "18:00",
-    trackingStartDate: new Date().toISOString().slice(0, 10),
-  });
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [schedule, setSchedule] = useState<SchedulePeriod[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializationError, setInitializationError] = useState<Error>();
@@ -77,11 +76,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     void initialize();
+    return () => {
+      void unloadFeedbackSound();
+    };
   }, [initialize]);
 
   const updateSettings = async (next: AppSettings) => {
-    await saveSettings(next);
-    setSettings(next);
+    const normalized = await saveSettings(next);
+    setSettings(normalized);
   };
 
   return (
@@ -96,6 +98,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         refresh,
         retryInitialization: initialize,
         updateSettings,
+        theme: getThemeColors(settings.themeIntensity),
       }}
     >
       {children}
