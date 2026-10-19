@@ -30,7 +30,7 @@ describe('backup validation', () => {
   it('accepts a complete backup and fills optional settings from defaults', () => {
     const backup = validBackup();
     delete (backup.settings as Partial<AppSettings>).soundsEnabled;
-    expect(validateBackup(backup).settings.soundsEnabled).toBe(false);
+    expect(validateBackup(backup).settings.soundsEnabled).toBe(true);
   });
 
   it.each([
@@ -46,11 +46,11 @@ describe('backup validation', () => {
   it('rejects duplicate identifiers before a database operation can start', () => {
     const backup = validBackup();
     backup.sessions.push({ ...session });
-    expect(() => validateBackup(backup)).toThrow(/duplicate workout session/i);
+    expect(() => validateBackup(backup)).toThrow(/identificadores de treino duplicados/i);
   });
 
   it('reports malformed JSON separately from an unsupported backup', () => {
-    expect(() => parseBackupJson('{')).toThrow('not valid JSON');
+    expect(() => parseBackupJson('{')).toThrow('JSON válido');
   });
 });
 
@@ -77,7 +77,7 @@ describe('backup restoration', () => {
   it('does not modify the database when validation fails', async () => {
     let writes = 0;
     const database = { execAsync: async () => { writes += 1; } } as never;
-    await expect(restoreBackupContents({ schemaVersion: 99 }, database)).rejects.toThrow(/unsupported/i);
+    await expect(restoreBackupContents({ schemaVersion: 99 }, database)).rejects.toThrow(/não compatível/i);
     expect(writes).toBe(0);
   });
 });

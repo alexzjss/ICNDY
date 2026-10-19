@@ -15,7 +15,7 @@ import {
   defaultSettings,
 } from "../database/repositories";
 import { AppSettings, SchedulePeriod, WorkoutSession } from "../domain/models";
-import { unloadFeedbackSound } from "../services/feedback";
+import { prepareFeedbackSounds, unloadFeedbackSound } from "../services/feedback";
 import { getThemeColors, ThemeColors } from "../theme";
 
 type ContextValue = {
@@ -80,6 +80,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       void unloadFeedbackSound();
     };
   }, [initialize]);
+
+  useEffect(() => {
+    if (settings.soundsEnabled) {
+      void prepareFeedbackSounds().catch((error) => console.warn("Não foi possível preparar os sons do treino.", error));
+    }
+  }, [settings.soundsEnabled]);
 
   const updateSettings = async (next: AppSettings) => {
     const normalized = await saveSettings(next);

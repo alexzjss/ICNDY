@@ -15,6 +15,8 @@ const mapSession = (row: SessionRow): WorkoutSession => ({
   notes: row.notes ? String(row.notes) : undefined, localDate: String(row.local_date),
   pausedAt: row.paused_at ? String(row.paused_at) : undefined, pausedDurationMs: Number(row.paused_duration_ms),
   elapsedBeforePauseMs: Number(row.elapsed_before_pause_ms),
+  restStartedAt: row.rest_started_at ? String(row.rest_started_at) : undefined,
+  restDurationSeconds: row.rest_duration_seconds ? Number(row.rest_duration_seconds) : undefined,
 });
 
 export const listSessions = async (completedOnly = false) => {
@@ -30,11 +32,11 @@ export const getActiveSession = async () => {
 export const saveSession = async (session: WorkoutSession) => {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT OR REPLACE INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms, rest_started_at, rest_duration_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.id, session.createdAt, session.startedAt, session.finishedAt ?? null, session.updatedAt, session.status, session.presetId,
     session.durationSeconds, JSON.stringify(session.movements), session.completedRounds, session.additionalReps, session.totalReps,
     session.comparisonKey, session.completionType ?? null, session.notes ?? null, session.localDate, session.pausedAt ?? null,
-    session.pausedDurationMs, session.elapsedBeforePauseMs,
+    session.pausedDurationMs, session.elapsedBeforePauseMs, session.restStartedAt ?? null, session.restDurationSeconds ?? null,
   );
 };
 export const deleteSession = async (id: string) => (await getDatabase()).runAsync('DELETE FROM workout_sessions WHERE id = ?', id);
@@ -43,7 +45,7 @@ export const defaultSettings: AppSettings = {
   onboardingComplete: false, remindersEnabled: false, reminderTime: '18:00',
   trackingStartDate: localDate(), timerDisplay: 'numeric',
   workoutLayout: 'detailed', themeIntensity: 'vibrant', hapticsEnabled: true,
-  soundsEnabled: false, reduceMotion: false,
+  soundsEnabled: true, reduceMotion: false,
 };
 export const normalizeSettings = (value: Partial<AppSettings> = {}): AppSettings => {
   const merged = { ...defaultSettings, ...value };

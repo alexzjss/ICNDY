@@ -40,6 +40,8 @@ export type WorkoutSession = WorkoutConfig & {
   pausedAt?: string;
   pausedDurationMs: number;
   elapsedBeforePauseMs: number;
+  restStartedAt?: string;
+  restDurationSeconds?: number;
 };
 
 export type SchedulePeriod = {

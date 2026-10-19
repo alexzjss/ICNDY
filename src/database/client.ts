@@ -27,6 +27,9 @@ export const getDatabase = async () => {
       );
       CREATE INDEX IF NOT EXISTS idx_schedule_effective ON training_schedule_periods(effective_from);
     `);
+    const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(workout_sessions)');
+    if (!columns.some((column) => column.name === 'rest_started_at')) await database.execAsync('ALTER TABLE workout_sessions ADD COLUMN rest_started_at TEXT');
+    if (!columns.some((column) => column.name === 'rest_duration_seconds')) await database.execAsync('ALTER TABLE workout_sessions ADD COLUMN rest_duration_seconds INTEGER');
     const count = await database.getFirstAsync<{ count: number}>('SELECT COUNT(*) as count FROM training_schedule_periods');
     if (!count?.count) {
       const today = localDate();

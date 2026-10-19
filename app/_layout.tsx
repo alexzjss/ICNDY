@@ -13,7 +13,7 @@ function RootNavigator() {
       <View style={styles.bootstrap}>
         <Text style={styles.wordmark}>ICNDY</Text>
         <ActivityIndicator color={theme.lime} />
-        <Text style={styles.message}>Preparing your local training log…</Text>
+        <Text style={styles.message}>Preparando seus treinos no dispositivo…</Text>
       </View>
     );
   }
@@ -22,12 +22,11 @@ function RootNavigator() {
     return (
       <View style={styles.bootstrap}>
         <Text style={styles.wordmark}>ICNDY</Text>
-        <Text style={styles.errorTitle}>Local data unavailable</Text>
+        <Text style={styles.errorTitle}>Seus dados estão indisponíveis</Text>
         <Text style={styles.message}>
-          ICNDY could not open its local training database. Your existing data
-          was not replaced.
+          O ICNDY não conseguiu abrir o banco de treinos local. Seus dados não foram substituídos.
         </Text>
-        <Button onPress={() => void retryInitialization()}>Try again</Button>
+        <Button onPress={() => void retryInitialization()}>Tentar novamente</Button>
       </View>
     );
   }

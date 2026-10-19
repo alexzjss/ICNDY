@@ -2,16 +2,16 @@ export type ThemeIntensity = 'discreet' | 'vibrant' | 'contrast';
 export type ThemeColors = typeof colors;
 
 export const colors = {
-  ink: '#080A09',
-  background: '#0D100E',
-  surface: '#151A16',
-  surfaceRaised: '#202720',
-  glass: 'rgba(28, 34, 29, 0.92)',
-  lime: '#D8FF38',
-  limeSoft: 'rgba(216, 255, 56, 0.14)',
-  text: '#F3F4EB',
-  muted: '#9B9F98',
-  line: '#2C352D',
+  ink: '#080B08',
+  background: '#0B0F0B',
+  surface: '#121812',
+  surfaceRaised: '#1B231B',
+  glass: 'rgba(18, 24, 18, 0.96)',
+  lime: '#B8F23B',
+  limeSoft: 'rgba(184, 242, 59, 0.12)',
+  text: '#F3F5EE',
+  muted: '#A0A89B',
+  line: '#2B352A',
   danger: '#FF765F',
   white: '#FFFFFF',
 };

@@ -64,6 +64,8 @@ const validateSession = (value: unknown): value is WorkoutSession => {
     !isNonNegativeInteger(value.pausedDurationMs) || !isNonNegativeInteger(value.elapsedBeforePauseMs)) return false;
   if (value.finishedAt !== undefined && !isIsoDate(value.finishedAt)) return false;
   if (value.pausedAt !== undefined && !isIsoDate(value.pausedAt)) return false;
+  if (value.restStartedAt !== undefined && !isIsoDate(value.restStartedAt)) return false;
+  if (value.restDurationSeconds !== undefined && (!isNonNegativeInteger(value.restDurationSeconds) || Number(value.restDurationSeconds) < 1 || Number(value.restDurationSeconds) > 600)) return false;
   if (value.completionType !== undefined && !knownCompletionTypes.includes(value.completionType as NonNullable<WorkoutSession['completionType']>)) return false;
   if (value.notes !== undefined && typeof value.notes !== 'string') return false;
   const session = value as unknown as WorkoutSession;
@@ -74,7 +76,7 @@ const validateSession = (value: unknown): value is WorkoutSession => {
 };
 
 const validateSettings = (value: unknown): AppSettings => {
-  if (!isRecord(value)) throw new Error('Backup contains invalid app preferences.');
+  if (!isRecord(value)) throw new Error('O backup contém preferências inválidas.');
   const settings = { ...defaultSettings, ...value } as Record<string, unknown>;
   if (typeof settings.onboardingComplete !== 'boolean' || typeof settings.remindersEnabled !== 'boolean' ||
     typeof settings.reminderTime !== 'string' || !/^\d{2}:\d{2}$/.test(settings.reminderTime) ||
@@ -82,9 +84,9 @@ const validateSettings = (value: unknown): AppSettings => {
     !['compact', 'detailed'].includes(String(settings.workoutLayout)) ||
     !['discreet', 'vibrant', 'contrast'].includes(String(settings.themeIntensity)) ||
     typeof settings.hapticsEnabled !== 'boolean' || typeof settings.soundsEnabled !== 'boolean' ||
-    typeof settings.reduceMotion !== 'boolean') throw new Error('Backup contains invalid app preferences.');
+    typeof settings.reduceMotion !== 'boolean') throw new Error('O backup contém preferências inválidas.');
   const [hours, minutes] = settings.reminderTime.split(':').map(Number);
-  if (hours > 23 || minutes > 59) throw new Error('Backup contains an invalid reminder time.');
+  if (hours > 23 || minutes > 59) throw new Error('O backup contém um horário de lembrete inválido.');
   return settings as AppSettings;
 };
 
@@ -93,19 +95,19 @@ const validateSchedules = (value: unknown): SchedulePeriod[] => {
     isNonEmptyString(period.id) && isDateOnly(period.effectiveFrom) && Array.isArray(period.weekdays) &&
     period.weekdays.length <= 7 && period.weekdays.every((day) => isNonNegativeInteger(day) && day <= 6) &&
     new Set(period.weekdays).size === period.weekdays.length)) {
-    throw new Error('Backup contains an invalid training schedule.');
+    throw new Error('O backup contém uma programação de treino inválida.');
   }
   const schedules = value as SchedulePeriod[];
-  if (!hasUniqueIds(schedules)) throw new Error('Backup contains duplicate training schedule identifiers.');
+  if (!hasUniqueIds(schedules)) throw new Error('O backup contém identificadores de programação duplicados.');
   return schedules;
 };
 
 export const validateBackup = (value: unknown): Backup => {
-  if (!isRecord(value)) throw new Error('Backup content must be a JSON object.');
-  if (value.schemaVersion !== BACKUP_VERSION) throw new Error(`Unsupported ICNDY backup format version: ${String(value.schemaVersion)}.`);
-  if (!isIsoDate(value.exportedAt)) throw new Error('Backup contains an invalid export date.');
-  if (!Array.isArray(value.sessions) || !value.sessions.every(validateSession)) throw new Error('Backup contains an invalid workout session.');
-  if (!hasUniqueIds(value.sessions)) throw new Error('Backup contains duplicate workout session identifiers.');
+  if (!isRecord(value)) throw new Error('O conteúdo do backup deve ser um objeto JSON.');
+  if (value.schemaVersion !== BACKUP_VERSION) throw new Error(`Versão de backup do ICNDY não compatível: ${String(value.schemaVersion)}.`);
+  if (!isIsoDate(value.exportedAt)) throw new Error('O backup contém uma data de exportação inválida.');
+  if (!Array.isArray(value.sessions) || !value.sessions.every(validateSession)) throw new Error('O backup contém uma sessão de treino inválida.');
+  if (!hasUniqueIds(value.sessions)) throw new Error('O backup contém identificadores de treino duplicados.');
   return {
     schemaVersion: BACKUP_VERSION,
     exportedAt: value.exportedAt as string,
@@ -119,11 +121,11 @@ const writeBackupToDatabase = async (db: SQLite.SQLiteDatabase, backup: Backup) 
   await db.execAsync('DELETE FROM workout_sessions; DELETE FROM app_settings; DELETE FROM training_schedule_periods;');
   for (const session of backup.sessions) {
     await db.runAsync(
-      `INSERT INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms, rest_started_at, rest_duration_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       session.id, session.createdAt, session.startedAt, session.finishedAt ?? null, session.updatedAt, session.status, session.presetId,
       session.durationSeconds, JSON.stringify(session.movements), session.completedRounds, session.additionalReps, session.totalReps,
       session.comparisonKey, session.completionType ?? null, session.notes ?? null, session.localDate, session.pausedAt ?? null,
-      session.pausedDurationMs, session.elapsedBeforePauseMs,
+      session.pausedDurationMs, session.elapsedBeforePauseMs, session.restStartedAt ?? null, session.restDurationSeconds ?? null,
     );
   }
   for (const key of settingKeys) {
@@ -147,7 +149,7 @@ export const parseBackupJson = (content: string): Backup => {
   try {
     return validateBackup(JSON.parse(content));
   } catch (error) {
-    if (error instanceof SyntaxError) throw new Error('The selected file is not valid JSON.');
+    if (error instanceof SyntaxError) throw new Error('O arquivo selecionado não contém um JSON válido.');
     throw error;
   }
 };

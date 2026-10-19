@@ -6,12 +6,12 @@ export const updateTrainingReminders = async (enabled: boolean, weekdays: number
   const permission = await Notifications.requestPermissionsAsync();
   if (!permission.granted) return false;
   if (Notifications.setNotificationChannelAsync) {
-    await Notifications.setNotificationChannelAsync('training', { name: 'Training reminders', importance: Notifications.AndroidImportance.DEFAULT });
+    await Notifications.setNotificationChannelAsync('training', { name: 'Lembretes de treino', importance: Notifications.AndroidImportance.DEFAULT });
   }
   const [hour, minute] = time.split(':').map(Number);
   for (const weekday of weekdays) {
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'ICNDY / training day', body: 'Your planned Cindy session is waiting.' },
+      content: { title: 'ICNDY / dia de treino', body: 'Seu treino planejado está esperando por você.' },
       trigger: { weekday: weekday === 0 ? 1 : weekday + 1, hour, minute, repeats: true, channelId: 'training' },
     });
   }

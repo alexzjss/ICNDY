@@ -17,4 +17,4 @@ export const addDays = (value: string, amount: number) => {
 };
 
 export const formatLocalDate = (value: string, options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) =>
-  parseLocalDate(value).toLocaleDateString(undefined, options);
+  parseLocalDate(value).toLocaleDateString('pt-BR', options);
