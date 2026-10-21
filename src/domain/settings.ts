@@ -1,7 +1,7 @@
 import { AppSettings } from './models';
 import { localDateString } from './dates';
 
-export const SETTING_KEYS = ['onboardingComplete', 'remindersEnabled', 'reminderTime', 'trackingStartDate', 'soundsEnabled'] as const;
+export const SETTING_KEYS = ['onboardingComplete', 'remindersEnabled', 'reminderTime', 'trackingStartDate', 'soundsEnabled', 'hapticsEnabled'] as const;
 
 export const defaultSettings = (): AppSettings => ({
   onboardingComplete: false,
@@ -9,6 +9,7 @@ export const defaultSettings = (): AppSettings => ({
   reminderTime: '18:00',
   trackingStartDate: localDateString(),
   soundsEnabled: true,
+  hapticsEnabled: true,
 });
 
 export const isDateOnly = (value: unknown): value is string => {
@@ -26,7 +27,7 @@ export const isTime = (value: unknown): value is string => {
 
 /**
  * Valida cada chave conhecida pelo tipo e cai no padrão quando inválida.
- * Chaves desconhecidas (ex.: `hapticsEnabled`, `themeIntensity` de APKs antigos) são ignoradas.
+ * Chaves desconhecidas (ex.: `themeIntensity` de APKs antigos) são ignoradas.
  * O legado `soundEnabled` só vale quando `soundsEnabled` não existe.
  */
 export const normalizeSettings = (value: unknown): AppSettings => {
@@ -40,5 +41,6 @@ export const normalizeSettings = (value: unknown): AppSettings => {
     reminderTime: isTime(raw.reminderTime) ? raw.reminderTime : base.reminderTime,
     trackingStartDate: isDateOnly(raw.trackingStartDate) ? raw.trackingStartDate : base.trackingStartDate,
     soundsEnabled: sound,
+    hapticsEnabled: typeof raw.hapticsEnabled === 'boolean' ? raw.hapticsEnabled : base.hapticsEnabled,
   };
 };

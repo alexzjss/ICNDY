@@ -7,12 +7,9 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Chip, SPRING, Text } from '../../components';
+import { Chip, Text } from '../../components';
 import { diffDays, formatDayMonth } from '../../domain/dates';
 import { WorkoutSession } from '../../domain/models';
 import { colors } from '../../theme';
@@ -31,21 +28,10 @@ const Dot = ({ x, y, index, total, isPr }: { x: number; y: number; index: number
   const scale = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     if (reduced) return;
-    scale.value = withDelay(200 + (total <= 1 ? 0 : (index / (total - 1)) * 900), withSpring(1, SPRING));
+    scale.value = withDelay(150 + (total <= 1 ? 0 : (index / (total - 1)) * 300), withTiming(1, { duration: 200 }));
   }, [reduced, index, total, scale]);
   const props = useAnimatedProps(() => ({ r: (isPr ? 6 : 4) * scale.value }));
   return <AnimatedCircle cx={x} cy={y} fill={isPr ? colors.accent : colors.bg} stroke={colors.accent} strokeWidth={2} animatedProps={props} />;
-};
-
-const PrHalo = ({ x, y }: { x: number; y: number }) => {
-  const reduced = useReducedMotion();
-  const p = useSharedValue(0);
-  useEffect(() => {
-    if (reduced) return;
-    p.value = withDelay(1100, withRepeat(withSequence(withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 0 })), -1));
-  }, [reduced, p]);
-  const props = useAnimatedProps(() => ({ r: 6 + p.value * 12, opacity: reduced ? 0 : (1 - p.value) * 0.6 }));
-  return <AnimatedCircle cx={x} cy={y} fill="none" stroke={colors.accent} strokeWidth={2} animatedProps={props} />;
 };
 
 type BodyProps = { points: EvolutionPoint[]; width: number };
@@ -65,7 +51,7 @@ const ChartBody = ({ points, width }: BodyProps) => {
 
   useEffect(() => {
     if (reduced) return;
-    progress.value = withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) });
+    progress.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
   }, [reduced, progress]);
 
   const lineProps = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - progress.value) }));
@@ -119,7 +105,7 @@ const ChartBody = ({ points, width }: BodyProps) => {
             />
           </>
         ) : null}
-        {pr >= 0 && coords.length > 1 ? <PrHalo x={coords[pr].x} y={coords[pr].y} /> : null}
+        {pr >= 0 && coords.length > 1 ? <Circle cx={coords[pr].x} cy={coords[pr].y} r={10} fill="none" stroke={colors.accent} strokeWidth={1.5} opacity={0.35} /> : null}
         {coords.map((c, i) => (
           <Dot key={points[i].id} x={c.x} y={c.y} index={i} total={coords.length} isPr={i === pr} />
         ))}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, MovementPill, Screen, StaggerIn, Text, Toggle, useToast } from '../components';
 import { useApp } from '../context/AppContext';
@@ -21,14 +21,12 @@ export default function OnboardingScreen() {
   const toast = useToast();
   const reduced = useReducedMotion();
   const [step, setStep] = useState(0);
-  const [direction, setDirection] = useState<1 | -1>(1);
   const [days, setDays] = useState([1, 3, 5]);
   const [reminders, setReminders] = useState(false);
   const [time, setTime] = useState('18:00');
   const [saving, setSaving] = useState(false);
 
   const go = (next: number) => {
-    setDirection(next > step ? 1 : -1);
     setStep(next);
   };
 
@@ -53,8 +51,8 @@ export default function OnboardingScreen() {
     }
   };
 
-  const entering = reduced ? FadeIn : direction === 1 ? SlideInRight.springify().damping(20) : SlideInLeft.springify().damping(20);
-  const exiting = reduced ? FadeOut : direction === 1 ? SlideOutLeft.duration(220) : SlideOutRight.duration(220);
+  const entering = FadeIn.duration(180);
+  const exiting = FadeOut.duration(120);
   const classic = getPreset('classic');
 
   return (
@@ -105,7 +103,7 @@ export default function OnboardingScreen() {
                   <Toggle accessibilityLabel="Lembretes de treino" value={reminders} onValueChange={setReminders} />
                 </View>
                 {reminders ? (
-                  <Animated.View entering={reduced ? undefined : FadeIn.duration(250)} exiting={reduced ? undefined : FadeOut.duration(150)}>
+                  <Animated.View entering={reduced ? undefined : FadeIn.duration(180)} exiting={reduced ? undefined : FadeOut.duration(120)}>
                     <TimePicker value={time} onChange={setTime} />
                   </Animated.View>
                 ) : null}

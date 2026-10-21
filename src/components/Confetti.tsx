@@ -44,17 +44,17 @@ const Piece = ({ spec, x0, y0, gravity, duration }: { spec: Spec; x0: number; y0
 export type ConfettiProps = {
   /** Muda (incrementa) ou vira true para disparar uma explosão. */
   trigger: number | boolean;
-  /** Número de partículas (padrão 80). */
+  /** Número de partículas (padrão 40). */
   count?: number;
   /** Origem como fração da tela (padrão x 0.5, y 0.35). */
   origin?: { x: number; y: number };
   colorsList?: string[];
-  /** Duração em ms (padrão 2800). */
+  /** Duração em ms (padrão 1500). */
   duration?: number;
 };
 
 /** Overlay de confete (pointerEvents none) disparado pela mudança de `trigger`. */
-export const Confetti = ({ trigger, count = 80, origin = { x: 0.5, y: 0.35 }, colorsList = PALETTE, duration = 2800 }: ConfettiProps) => {
+export const Confetti = ({ trigger, count = 40, origin = { x: 0.5, y: 0.35 }, colorsList = PALETTE, duration = 1500 }: ConfettiProps) => {
   const reduced = useReducedMotion();
   const { width, height } = useWindowDimensions();
   const [burst, setBurst] = useState<{ key: number; specs: Spec[] }>();
@@ -64,7 +64,7 @@ export const Confetti = ({ trigger, count = 80, origin = { x: 0.5, y: 0.35 }, co
     const key = Date.now();
     const specs: Spec[] = Array.from({ length: count }, (_, id) => {
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.1;
-      const speed = 380 + Math.random() * 520;
+      const speed = 320 + Math.random() * 380;
       return {
         id,
         vx: Math.cos(angle) * speed,

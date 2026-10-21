@@ -1,15 +1,7 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { colors, radius, spacing, withAlpha } from '../theme';
 import { Button } from './Button';
 import { haptic, usePressScale } from './Motion';
@@ -34,7 +26,7 @@ export type CardProps = {
 
 /** Superfície arredondada; pressable (spring) quando recebe onPress; aceita entering/layout. */
 export const Card = ({ children, onPress, accent, flush, style, entering, layout, accessibilityLabel }: CardProps) => {
-  const press = usePressScale(0.97);
+  const press = usePressScale(0.98);
   const base = [styles.card, flush ? null : styles.padded, accent ? { borderColor: withAlpha(accent, 0.6) } : null];
   if (!onPress) {
     return (
@@ -74,7 +66,7 @@ export type ChipProps = {
 
 /** Pílula pequena de informação; selecionável/pressable se receber onPress. */
 export const Chip = ({ label, icon, color = colors.muted, selected = false, onPress, style }: ChipProps) => {
-  const press = usePressScale(0.92);
+  const press = usePressScale(0.96);
   const fg = selected ? colors.onAccent : color === colors.muted ? colors.text : color;
   const body = (
     <>
@@ -121,23 +113,13 @@ export type EmptyStateProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Estado vazio com ícone flutuante, texto e ação opcional. */
+/** Estado vazio com ícone, texto e ação opcional. */
 export const EmptyState = ({ icon = 'barbell-outline', title, message, action, style }: EmptyStateProps) => {
-  const reduced = useReducedMotion();
-  const float = useSharedValue(0);
-  useEffect(() => {
-    if (reduced) return;
-    float.value = withRepeat(
-      withSequence(withTiming(-6, { duration: 1400, easing: Easing.inOut(Easing.quad) }), withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.quad) })),
-      -1,
-    );
-  }, [reduced, float]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: float.value }] }));
   return (
     <View style={[styles.empty, style]}>
-      <Animated.View style={[styles.emptyIcon, iconStyle]}>
+      <View style={styles.emptyIcon}>
         <Ionicons name={icon} size={34} color={colors.accent} />
-      </Animated.View>
+      </View>
       <Text variant="heading" align="center">
         {title}
       </Text>

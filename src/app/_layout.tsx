@@ -17,7 +17,7 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { AppProvider, useApp } from "../context/AppContext";
-import { Button, Screen, Text as UIText, ToastProvider } from "../components";
+import { Button, Screen, Text as UIText, ToastProvider, useSyncHaptics } from "../components";
 import { colors } from "../theme";
 import { exportLog, installGlobalErrorLogging, logError } from "../services/log";
 
@@ -85,6 +85,7 @@ function RootNavigator() {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
   }, [ready]);
 
+  useSyncHaptics(settings);
   const onboarded = settings.onboardingComplete;
 
   return (
@@ -92,7 +93,8 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: "slide_from_right",
+          animation: "fade",
+          animationDuration: 180,
           contentStyle: { backgroundColor: colors.bg },
         }}
       >

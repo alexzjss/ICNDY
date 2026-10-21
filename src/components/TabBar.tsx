@@ -5,13 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,9 +30,8 @@ const TabItem = ({ name, focused, onPress }: { name: string; focused: boolean; o
   const reduced = useReducedMotion();
   const p = useSharedValue(focused ? 1 : 0);
   useEffect(() => {
-    p.value = reduced ? (focused ? 1 : 0) : withSpring(focused ? 1 : 0, { damping: 13, stiffness: 220 });
+    p.value = reduced ? (focused ? 1 : 0) : withTiming(focused ? 1 : 0, { duration: 150 });
   }, [focused, reduced, p]);
-  const icon = useAnimatedStyle(() => ({ transform: [{ scale: 1 + p.value * 0.18 }, { translateY: -p.value * 2 }] }));
   const on = useAnimatedStyle(() => ({ opacity: p.value }));
   const off = useAnimatedStyle(() => ({ opacity: 1 - p.value }));
   const dot = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scaleX: p.value }] }));
@@ -48,7 +43,7 @@ const TabItem = ({ name, focused, onPress }: { name: string; focused: boolean; o
       onPress={onPress}
       style={styles.tab}
     >
-      <Animated.View style={[styles.iconBox, icon]}>
+      <Animated.View style={styles.iconBox}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, off]}>
           <Ionicons name={meta.icon} size={24} color={colors.muted} />
         </Animated.View>
@@ -67,22 +62,11 @@ const TabItem = ({ name, focused, onPress }: { name: string; focused: boolean; o
 const CenterButton = () => {
   const router = useRouter();
   const { active } = useApp();
-  const reduced = useReducedMotion();
-  const press = usePressScale(0.9);
-  const pulse = useSharedValue(0);
-  useEffect(() => {
-    if (reduced) {
-      pulse.value = 0;
-      return;
-    }
-    pulse.value = withRepeat(withSequence(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) }), withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.quad) })), -1);
-  }, [reduced, pulse]);
-  const body = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pulse.value * 0.05 }] }));
-  const glow = useAnimatedStyle(() => ({ opacity: 0.45 * (1 - pulse.value), transform: [{ scale: 1 + pulse.value * 0.35 }] }));
+  const press = usePressScale(0.96);
   const resume = Boolean(active);
   return (
     <View style={styles.centerSlot} pointerEvents="box-none">
-      <Animated.View pointerEvents="none" style={[styles.glow, glow]} />
+      <View pointerEvents="none" style={styles.glow} />
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={resume ? 'Retomar treino' : 'Treinar'}
@@ -94,12 +78,12 @@ const CenterButton = () => {
         }}
         style={[styles.centerPress, press.style]}
       >
-        <Animated.View style={[styles.centerBody, body]}>
+        <View style={styles.centerBody}>
           <LinearGradient colors={gradients.accent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.centerGradient}>
             <Ionicons name={resume ? 'play' : 'flash'} size={26} color={colors.onAccent} />
             <Text style={styles.centerLabel}>{resume ? 'RETOMAR' : 'TREINAR'}</Text>
           </LinearGradient>
-        </Animated.View>
+        </View>
       </AnimatedPressable>
     </View>
   );
@@ -155,7 +139,7 @@ const styles = StyleSheet.create({
   dot: { width: 16, height: 3, borderRadius: 2, backgroundColor: colors.accent, position: 'absolute', top: 0 },
   centerSpacer: { width: SIZE + 16 },
   centerSlot: { position: 'absolute', left: 0, right: 0, top: -SIZE / 2 + 6, alignItems: 'center' },
-  glow: { position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2, backgroundColor: colors.accent },
+  glow: { position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2, backgroundColor: colors.accent, opacity: 0.18 },
   centerPress: { width: SIZE, height: SIZE },
   centerBody: {
     width: SIZE,

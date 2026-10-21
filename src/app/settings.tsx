@@ -191,6 +191,14 @@ export default function SettingsScreen() {
             </View>
             <Toggle accessibilityLabel="Sons no treino" value={settings.soundsEnabled} onValueChange={(v) => void updateSettings({ ...settings, soundsEnabled: v })} />
           </View>
+          <View style={styles.row}>
+            <View style={styles.icon}><Ionicons name="phone-portrait-outline" size={20} color={colors.accent} /></View>
+            <View style={styles.flex}>
+              <Text variant="heading">Vibração</Text>
+              <Text variant="caption">Feedback tátil em toques e rounds</Text>
+            </View>
+            <Toggle accessibilityLabel="Vibração" value={settings.hapticsEnabled} onValueChange={(v) => void updateSettings({ ...settings, hapticsEnabled: v })} />
+          </View>
         </Card>
       </StaggerIn>
 

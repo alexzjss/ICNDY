@@ -17,7 +17,7 @@ export type AnimatedNumberProps = {
   /** Valor inicial da primeira animação (padrão 0). Ignorado se animateOnMount=false. */
   from?: number;
   animateOnMount?: boolean;
-  /** Duração da contagem em ms (padrão 900). */
+  /** Duração da contagem em ms (padrão 500). */
   duration?: number;
   decimals?: number;
   /** 'number' (padrão) ou 'mmss' (interpreta o valor como segundos). */
@@ -34,7 +34,7 @@ export const AnimatedNumber = ({
   value,
   from = 0,
   animateOnMount = true,
-  duration = 900,
+  duration = 500,
   decimals = 0,
   format = 'number',
   prefix = '',
@@ -49,7 +49,7 @@ export const AnimatedNumber = ({
   useEffect(() => {
     progress.value = reduced
       ? value
-      : withTiming(value, { duration, easing: Easing.out(Easing.cubic) });
+      : withTiming(value, { duration, easing: Easing.out(Easing.quad) });
   }, [value, duration, reduced, progress]);
 
   const animatedProps = useAnimatedProps(() => {

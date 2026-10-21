@@ -46,7 +46,7 @@ export const ConsistencyHeatmap = ({ sessions, schedule, today }: Props) => {
   return (
     <View onLayout={onLayout} style={styles.root}>
       {size > 0 ? (
-        <View style={styles.grid} accessible accessibilityLabel={`Calendário de consistência: ${totalDone} treinos nas últimas ${WEEKS} semanas`}>
+        <Animated.View entering={reduced ? undefined : FadeIn.duration(250)} style={styles.grid} accessible accessibilityLabel={`Calendário de consistência: ${totalDone} treinos nas últimas ${WEEKS} semanas`}>
           <View style={styles.labels}>
             {LETTERS.map((l, i) => (
               <View key={i} style={{ height: size, justifyContent: 'center' }}>
@@ -58,16 +58,12 @@ export const ConsistencyHeatmap = ({ sessions, schedule, today }: Props) => {
             {grid.map((col, c) => (
               <View key={col[0].date} style={styles.column}>
                 {col.map((cell, r) => (
-                  <Animated.View
-                    key={cell.date}
-                    entering={reduced ? undefined : FadeIn.delay(c * 35 + r * 12).duration(260)}
-                    style={[cellStyle(cell, size), cell.isToday && styles.today]}
-                  />
+                  <View key={cell.date} style={[cellStyle(cell, size), cell.isToday && styles.today]} />
                 ))}
               </View>
             ))}
           </View>
-        </View>
+        </Animated.View>
       ) : null}
       <View style={styles.legend}>
         <LegendItem style={{ backgroundColor: colors.accent }} label="Feito" />

@@ -22,7 +22,7 @@ export const Sparkline = ({ values, height = 44, color = colors.accent, delay = 
   useEffect(() => {
     if (reduced || width === 0) return;
     progress.value = 0;
-    progress.value = withDelay(delay, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
+    progress.value = withDelay(delay, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
   }, [width, signature, reduced, delay, progress]);
 
   const lineProps = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - progress.value) }));

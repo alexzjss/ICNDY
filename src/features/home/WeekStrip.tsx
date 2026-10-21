@@ -7,12 +7,9 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Card, SPRING, Text } from '../../components';
+import { Card, Text } from '../../components';
 import { colors, fonts, withAlpha } from '../../theme';
 import { WEEKDAY_NAMES, WeekDay } from './logic';
 
@@ -21,17 +18,14 @@ const SIZE = 38;
 const Dot = ({ day, index }: { day: WeekDay; index: number }) => {
   const reduced = useReducedMotion();
   const pop = useSharedValue(reduced ? 1 : 0);
-  const pulse = useSharedValue(0);
   const pending = day.state === 'today';
 
   useEffect(() => {
     if (reduced) return;
-    pop.value = withDelay(300 + index * 70, withSpring(1, SPRING));
-    if (pending) pulse.value = withRepeat(withSequence(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), withTiming(0, { duration: 900, easing: Easing.inOut(Easing.quad) })), -1);
-  }, [reduced, pending, index, pop, pulse]);
+    pop.value = withDelay(Math.min(index, 6) * 25, withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) }));
+  }, [reduced, index, pop]);
 
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }], opacity: pop.value }));
-  const ring = useAnimatedStyle(() => ({ opacity: 0.6 - pulse.value * 0.6, transform: [{ scale: 1 + pulse.value * 0.35 }] }));
+  const style = useAnimatedStyle(() => ({ opacity: pop.value }));
 
   const done = day.state === 'done' || day.state === 'todayDone';
   let body;
@@ -65,7 +59,7 @@ const Dot = ({ day, index }: { day: WeekDay; index: number }) => {
     <View style={styles.cell} accessible accessibilityLabel={`${WEEKDAY_NAMES[day.weekday]}${day.isToday ? ', hoje' : ''}: ${done ? 'treino feito' : day.state === 'missed' ? 'perdido' : day.planned ? 'planejado' : 'descanso'}`}>
       <Text variant="caption" color={day.isToday ? colors.text : colors.muted} style={styles.letter}>{day.letter}</Text>
       <Animated.View style={[styles.wrap, style]}>
-        {pending ? <Animated.View style={[styles.ring, ring]} /> : null}
+        {pending ? <View style={styles.ring} /> : null}
         {body}
       </Animated.View>
     </View>
