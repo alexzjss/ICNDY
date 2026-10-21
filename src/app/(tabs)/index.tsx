@@ -1,69 +1,68 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AnimatedNumber, Button, Card, EmptyState, Header, IconButton, Screen, SessionCard, StaggerIn, staggerEntering, Text } from '../../components';
+import { EmptyState, Header, IconButton, Screen, SessionCard, StaggerIn, staggerEntering, Text } from '../../components';
 import { useApp } from '../../context/AppContext';
-import { addDays, localDateString } from '../../domain/dates';
-import { sessionTitle } from '../../domain/presets';
+import { formatDayMonth, localDateString } from '../../domain/dates';
+import { findPersonalBest } from '../../domain/pace';
 import { calculateStreaks } from '../../domain/streaks';
-import { colors } from '../../theme';
+import { ActiveWorkoutCard } from '../../features/home/ActiveWorkoutCard';
+import { currentWeek, greetingFor, pickPrimaryKey, recentResults } from '../../features/home/logic';
+import { PrCard } from '../../features/home/PrCard';
+import { StreakHero } from '../../features/home/StreakHero';
+import { WeekStrip } from '../../features/home/WeekStrip';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { sessions, active, schedule } = useApp();
-  const streak = useMemo(() => calculateStreaks(sessions, schedule, localDateString()).current, [sessions, schedule]);
-  const weekStart = addDays(localDateString(), -6);
-  const week = sessions.filter((session) => session.localDate >= weekStart).length;
+  const today = localDateString();
+  const greeting = useMemo(() => greetingFor(new Date().getHours()), []);
+  const streak = useMemo(() => calculateStreaks(sessions, schedule, today).current, [sessions, schedule, today]);
+  const week = useMemo(() => currentWeek(today, sessions, schedule), [today, sessions, schedule]);
+  const last = useMemo(() => [...sessions].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0], [sessions]);
+  const primaryKey = useMemo(() => pickPrimaryKey(sessions), [sessions]);
+  const pr = useMemo(() => (primaryKey ? findPersonalBest(sessions, primaryKey) : undefined), [sessions, primaryKey]);
+  const results = useMemo(() => (primaryKey ? recentResults(sessions, primaryKey) : []), [sessions, primaryKey]);
+
+  let index = 1;
   return (
     <Screen tabs>
       <Header
-        eyebrow="ICNDY"
-        title="Faça hoje valer."
+        eyebrow={formatDayMonth(today)}
+        title={greeting}
         right={<IconButton icon="settings-outline" variant="solid" accessibilityLabel="Ajustes" onPress={() => router.push('/settings')} />}
       />
-      <StaggerIn index={1}>
-        <Card>
-          <View style={styles.metrics}>
-            <View>
-              <Text variant="label">Sequência atual</Text>
-              <View style={styles.inline}>
-                <AnimatedNumber value={streak} fontSize={48} />
-                <Text variant="caption"> dias</Text>
-              </View>
-            </View>
-            <View>
-              <Text variant="label">Últimos 7 dias</Text>
-              <View style={styles.inline}>
-                <AnimatedNumber value={week} fontSize={48} />
-                <Text variant="caption"> treinos</Text>
-              </View>
-            </View>
-          </View>
-        </Card>
+      {active ? <ActiveWorkoutCard session={active} entering={staggerEntering(index++)} /> : null}
+      <StaggerIn index={index++}>
+        <StreakHero streak={streak} />
       </StaggerIn>
-      {active ? (
-        <StaggerIn index={2}>
-          <Card accent={colors.accent}>
-            <Text variant="label" color={colors.accent}>Treino em andamento</Text>
-            <Text variant="heading">{sessionTitle(active)}</Text>
-            <Button icon="play" onPress={() => router.push('/workout/active')}>Retomar treino</Button>
-          </Card>
+      <StaggerIn index={index++}>
+        <WeekStrip week={week} />
+      </StaggerIn>
+      {last ? (
+        <View style={styles.section}>
+          <Text variant="label">Último treino</Text>
+          <SessionCard session={last} entering={staggerEntering(index++)} />
+        </View>
+      ) : (
+        <StaggerIn index={index++}>
+          <EmptyState
+            icon="rocket-outline"
+            title="Seu primeiro Cindy te espera"
+            message="20 minutos, 3 movimentos, quantos rounds você aguenta? Toque em TREINAR e comece sua sequência."
+            action={{ label: 'Treinar agora', onPress: () => router.push('/workout/setup') }}
+          />
         </StaggerIn>
-      ) : null}
-      <View style={styles.section}>
-        <Text variant="label">Treinos recentes</Text>
-        {sessions.slice(0, 3).map((session, index) => (
-          <SessionCard key={session.id} session={session} entering={staggerEntering(index + 3)} />
-        ))}
-        {sessions.length === 0 ? <EmptyState title="Nenhum treino ainda" message="Seu primeiro benchmark começa aqui. Toque em TREINAR." /> : null}
-      </View>
-      <Text variant="caption">O treino é de sua responsabilidade. O ICNDY é uma ferramenta de registro, não aconselhamento médico. Pare se algum exercício causar dor ou sintomas preocupantes.</Text>
+      )}
+      {pr ? <PrCard pr={pr} results={results} entering={staggerEntering(index++)} /> : null}
+      <Text variant="caption" style={styles.disclaimer}>
+        O treino é de sua responsabilidade. O ICNDY é uma ferramenta de registro, não aconselhamento médico. Pare se algum exercício causar dor ou sintomas preocupantes.
+      </Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  metrics: { flexDirection: 'row', justifyContent: 'space-between' },
-  inline: { flexDirection: 'row', alignItems: 'baseline' },
-  section: { gap: 12 },
+  section: { gap: 10 },
+  disclaimer: { opacity: 0.7, marginTop: 8 },
 });
