@@ -61,5 +61,5 @@ export type AppSettings = {
   remindersEnabled: boolean;
   reminderTime: string;
   trackingStartDate: string;
-  soundEnabled: boolean;
+  soundsEnabled: boolean;
 };

@@ -42,8 +42,8 @@ export default function ActiveWorkoutScreen() {
   // Estado "quente" em refs: toques e tick não dependem de re-render.
   const sessionRef = useRef(active);
   if (active && (!sessionRef.current || active.id !== sessionRef.current.id || active.updatedAt >= sessionRef.current.updatedAt)) sessionRef.current = active;
-  const soundRef = useRef(settings.soundEnabled);
-  soundRef.current = settings.soundEnabled;
+  const soundRef = useRef(settings.soundsEnabled);
+  soundRef.current = settings.soundsEnabled;
   const finishingRef = useRef(false);
   const lastCount = useRef<number | null>(null);
   const lastRemSec = useRef<number | null>(null);

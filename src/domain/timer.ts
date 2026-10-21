@@ -16,3 +16,6 @@ export const formatRemaining = (milliseconds: number) => {
   const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 };
+
+export const progressRatio = (state: TimerState, nowMs: number) =>
+  state.durationMs === 0 ? 0 : remainingMs(state, nowMs) / state.durationMs;

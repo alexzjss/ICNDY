@@ -17,7 +17,7 @@ import {
   saveSession,
   saveSettings,
 } from "../database/repositories";
-import { localDateString } from "../domain/dates";
+import { defaultSettings } from "../domain/settings";
 import { AppSettings, SchedulePeriod, WorkoutSession } from "../domain/models";
 
 type ContextValue = {
@@ -44,13 +44,7 @@ const AppContext = createContext<ContextValue | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [active, setActive] = useState<WorkoutSession>();
-  const [settings, setSettings] = useState<AppSettings>(() => ({
-    onboardingComplete: false,
-    remindersEnabled: false,
-    reminderTime: "18:00",
-    trackingStartDate: localDateString(),
-    soundEnabled: true,
-  }));
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [schedule, setSchedule] = useState<SchedulePeriod[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializationError, setInitializationError] = useState<Error>();

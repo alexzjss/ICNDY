@@ -180,7 +180,7 @@ export default function SettingsScreen() {
               <Text variant="heading">Sons no treino</Text>
               <Text variant="caption">Bipes de contagem, último minuto e fim</Text>
             </View>
-            <Toggle accessibilityLabel="Sons no treino" value={settings.soundEnabled} onValueChange={(v) => void updateSettings({ ...settings, soundEnabled: v })} />
+            <Toggle accessibilityLabel="Sons no treino" value={settings.soundsEnabled} onValueChange={(v) => void updateSettings({ ...settings, soundsEnabled: v })} />
           </View>
         </Card>
       </StaggerIn>

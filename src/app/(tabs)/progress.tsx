@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AnimatedNumber, Card, EmptyState, Header, Screen, StaggerIn, Text } from '../../components';
+import Animated from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { AnimatedNumber, Card, EmptyState, Header, Screen, StaggerIn, Text, staggerEntering } from '../../components';
 import { useApp } from '../../context/AppContext';
 import { getAchievements } from '../../domain/achievements';
 import { localDateString } from '../../domain/dates';
+import { getInsights } from '../../domain/insights';
 import { findPersonalBest } from '../../domain/pace';
 import { calculateStreaks } from '../../domain/streaks';
 import { pickPrimaryKey } from '../../features/home/logic';
@@ -26,6 +29,7 @@ export default function ProgressScreen() {
   const streaks = useMemo(() => calculateStreaks(sessions, schedule, today), [sessions, schedule, today]);
   const achievements = useMemo(() => getAchievements(sessions, streaks.best), [sessions, streaks.best]);
   const prKey = useMemo(() => pickPrimaryKey(sessions), [sessions]);
+  const insights = useMemo(() => getInsights(sessions), [sessions]);
   const pr = prKey ? findPersonalBest(sessions, prKey)?.totalReps ?? 0 : 0;
 
   return (
@@ -40,6 +44,24 @@ export default function ProgressScreen() {
           </View>
         </Card>
       </StaggerIn>
+      {sessions.length > 0 ? (
+        <StaggerIn index={2}>
+          <Card>
+            <Text variant="label">Insights</Text>
+            <View style={styles.insights}>
+              {insights.map((insight, index) => (
+                <Animated.View key={insight.title} entering={staggerEntering(index + 3)} style={styles.insight}>
+                  <Ionicons name={insight.icon} size={20} color={colors.accent} style={styles.insightIcon} />
+                  <View style={styles.insightText}>
+                    <Text variant="body" style={styles.insightTitle}>{insight.title}</Text>
+                    <Text variant="caption">{insight.detail}</Text>
+                  </View>
+                </Animated.View>
+              ))}
+            </View>
+          </Card>
+        </StaggerIn>
+      ) : null}
       {sessions.length === 0 ? (
         <StaggerIn index={2}>
           <EmptyState icon="stats-chart-outline" title="Sem dados ainda" message="Complete seu primeiro treino e acompanhe a evolução, a consistência e as conquistas aqui." />
@@ -77,5 +99,10 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   metric: { gap: 2 },
+  insights: { gap: 14, marginTop: 12 },
+  insight: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  insightIcon: { marginTop: 2 },
+  insightTitle: { fontWeight: '600' },
+  insightText: { flex: 1, gap: 2 },
   section: { gap: 10, marginTop: 8 },
 });

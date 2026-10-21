@@ -1,6 +1,7 @@
 import { getDatabase } from './client';
 import { AppSettings, SchedulePeriod, WorkoutSession } from '../domain/models';
 import { addDays, localDateString } from '../domain/dates';
+import { normalizeSettings, SETTING_KEYS } from '../domain/settings';
 import { comparisonKey, repsPerRound, totalReps } from '../domain/scoring';
 
 type SessionRow = Record<string, unknown>;
@@ -67,16 +68,19 @@ export const updateSession = async (id: string, patch: Partial<Omit<WorkoutSessi
 };
 export const deleteSession = async (id: string) => (await getDatabase()).runAsync('DELETE FROM workout_sessions WHERE id = ?', id);
 
-const defaults = (): AppSettings => ({ onboardingComplete: false, remindersEnabled: false, reminderTime: '18:00', trackingStartDate: localDateString(), soundEnabled: true });
 export const getSettings = async () => {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
-  return rows.reduce((settings, row) => ({ ...settings, [row.key]: parseJson(row.value, (settings as Record<string, unknown>)[row.key]) }), defaults() as AppSettings);
+  const stored: Record<string, unknown> = {};
+  for (const row of rows) stored[row.key] = parseJson<unknown>(row.value, undefined);
+  return normalizeSettings(stored);
 };
 export const saveSettings = async (settings: AppSettings) => {
   const db = await getDatabase();
+  const normalized = normalizeSettings(settings);
   await db.withTransactionAsync(async () => {
-    for (const [key, value] of Object.entries(settings)) await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', key, JSON.stringify(value));
+    for (const [key, value] of Object.entries(normalized)) await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', key, JSON.stringify(value));
+    await db.runAsync(`DELETE FROM app_settings WHERE key NOT IN (${SETTING_KEYS.map(() => '?').join(', ')})`, ...SETTING_KEYS);
   });
 };
 export const getSchedule = async () => {
