@@ -1,83 +1,115 @@
-import { describe, expect, it, vi } from 'vitest';
-vi.mock('expo-sqlite', () => ({}));
-vi.mock('expo-document-picker', () => ({ getDocumentAsync: vi.fn() }));
-vi.mock('expo-file-system/legacy', () => ({}));
-vi.mock('expo-sharing', () => ({}));
-import { BACKUP_VERSION, parseBackupJson, restoreBackupContents, restoreBackupData, validateBackup } from '../src/services/backup';
-import { AppSettings } from '../src/domain/models';
+import { describe, expect, it } from 'vitest';
+import { BACKUP_VERSION, migrateBackup } from '../src/services/backupFormat';
+import { PRESETS } from '../src/domain/presets';
+import { makeSession, period } from './fixtures';
 
-const settings: AppSettings = {
-  onboardingComplete: true, remindersEnabled: false, reminderTime: '18:00', trackingStartDate: '2026-01-01',
-  timerDisplay: 'numeric', workoutLayout: 'detailed', themeIntensity: 'vibrant', hapticsEnabled: true,
-  soundsEnabled: false, reduceMotion: false,
+const v1 = () => {
+  const { roundSplitsMs: _splits, ...legacy } = makeSession('2025-01-06');
+  void _splits;
+  return {
+    schemaVersion: 1,
+    exportedAt: '2025-01-07T00:00:00.000Z',
+    sessions: [legacy],
+    settings: { onboardingComplete: true, remindersEnabled: true, reminderTime: '07:30', trackingStartDate: '2025-01-01' },
+    schedules: [period('2025-01-01', [1, 3, 5])],
+  };
 };
-const session = {
-  id: 'session-1', createdAt: '2026-01-01T10:00:00.000Z', startedAt: '2026-01-01T10:00:00.000Z',
-  updatedAt: '2026-01-01T10:20:00.000Z', status: 'completed' as const, presetId: 'classic' as const,
-  durationSeconds: 1200, movements: [
-    { key: 'pull-up', label: 'Pull-ups', reps: 5, group: 'pull' as const },
-    { key: 'push-up', label: 'Push-ups', reps: 10, group: 'push' as const },
-    { key: 'air-squat', label: 'Air squats', reps: 15, group: 'squat' as const },
-  ], completedRounds: 2, additionalReps: 3, totalReps: 63, comparisonKey: '1200:pull-up-5|push-up-10|air-squat-15',
-  localDate: '2026-01-01', pausedDurationMs: 0, elapsedBeforePauseMs: 0,
-};
-const validBackup = () => ({
-  schemaVersion: BACKUP_VERSION, exportedAt: '2026-01-02T00:00:00.000Z',
-  sessions: [session], settings, schedules: [{ id: 'schedule-1', effectiveFrom: '2026-01-01', weekdays: [1, 3, 5] }],
+
+describe('backup migration', () => {
+  it('upgrades v1 to v2 with empty splits and default sound', () => {
+    const result = migrateBackup(v1());
+    expect(result.schemaVersion).toBe(BACKUP_VERSION);
+    expect(result.sessions[0].roundSplitsMs).toEqual([]);
+    expect(result.sessions[0].rpe).toBeUndefined();
+    expect(result.settings.soundsEnabled).toBe(true);
+    expect(result.settings.reminderTime).toBe('07:30');
+  });
+  it('keeps v2 data', () => {
+    const raw = { ...v1(), schemaVersion: 2, sessions: [makeSession('2025-01-06', { roundSplitsMs: [1000, 2000], rpe: 8, partial: { movementIndex: 1, reps: 4 } })] };
+    const result = migrateBackup(raw);
+    expect(result.sessions[0].roundSplitsMs).toEqual([1000, 2000]);
+    expect(result.sessions[0].rpe).toBe(8);
+    expect(result.sessions[0].partial).toEqual({ movementIndex: 1, reps: 4 });
+  });
+  it('uses legacy soundEnabled when soundsEnabled is absent, and ignores unknown keys', () => {
+    const raw = { ...v1(), settings: { ...v1().settings, soundEnabled: false, hapticsEnabled: true, themeIntensity: 'vibrant' } };
+    const { settings } = migrateBackup(raw);
+    expect(settings.soundsEnabled).toBe(false);
+    expect(settings).not.toHaveProperty('hapticsEnabled');
+    const both = migrateBackup({ ...v1(), settings: { soundEnabled: false, soundsEnabled: true } });
+    expect(both.settings.soundsEnabled).toBe(true);
+  });
+  it('falls back to defaults for settings with the wrong type', () => {
+    const { settings } = migrateBackup({ ...v1(), settings: { onboardingComplete: 'yes', reminderTime: '99:99', soundsEnabled: 1 } });
+    expect(settings.onboardingComplete).toBe(false);
+    expect(settings.reminderTime).toBe('18:00');
+    expect(settings.soundsEnabled).toBe(true);
+  });
+  it('rejects unsupported versions and malformed content', () => {
+    expect(() => migrateBackup({ ...v1(), schemaVersion: 3 })).toThrow('compatível');
+    expect(() => migrateBackup(null)).toThrow('compatível');
+    expect(() => migrateBackup({ ...v1(), sessions: [{ id: 'x' }] })).toThrow();
+    expect(() => migrateBackup({ ...v1(), schedules: [{ id: 'p', effectiveFrom: 'bad', weekdays: [1] }] })).toThrow();
+    expect(() => migrateBackup({ ...v1(), schedules: [{ id: 'p', effectiveFrom: '2025-01-01', weekdays: [9] }] })).toThrow();
+  });
 });
 
-describe('backup validation', () => {
-  it('accepts a complete backup and fills optional settings from defaults', () => {
-    const backup = validBackup();
-    delete (backup.settings as Partial<AppSettings>).soundsEnabled;
-    expect(validateBackup(backup).settings.soundsEnabled).toBe(true);
-  });
+describe('backup strict validation', () => {
+  const withSession = (overrides: Record<string, unknown>) => ({ ...v1(), schemaVersion: 2, sessions: [{ ...makeSession('2025-01-06'), ...overrides }] });
+  const withSchedule = (overrides: Record<string, unknown>) => ({ ...v1(), schedules: [{ ...period('2025-01-01', [1]), ...overrides }] });
+  const classic = PRESETS[0].movements;
 
   it.each([
-    ['invalid JSON shape', null],
-    ['missing sessions', { ...validBackup(), sessions: undefined }],
-    ['unknown version', { ...validBackup(), schemaVersion: 99 }],
-    ['inconsistent score', { ...validBackup(), sessions: [{ ...session, totalReps: 64 }] }],
-    ['invalid calendar date', { ...validBackup(), sessions: [{ ...session, localDate: '2026-02-30' }] }],
-  ])('rejects %s', (_name, value) => {
-    expect(() => validateBackup(value)).toThrow();
+    ['data ISO inválida', { createdAt: '2025-01-06 10:00' }, 'createdAt'],
+    ['data inexistente', { updatedAt: '2025-02-30T10:00:00.000Z' }, 'updatedAt'],
+    ['dia inválido', { localDate: '2025-02-30' }, 'dia do treino'],
+    ['status desconhecido', { status: 'done' }, 'status'],
+    ['preset desconhecido', { presetId: 'custom' }, 'modelo'],
+    ['completionType desconhecido', { completionType: 'quit' }, 'conclusão'],
+    ['duração curta', { durationSeconds: 59 }, 'duração'],
+    ['duração longa', { durationSeconds: 3601 }, 'duração'],
+    ['sem movimentos', { movements: [] }, 'movimento'],
+    ['grupo inválido', { movements: [{ ...classic[0], group: 'core' }] }, 'grupo'],
+    ['repetições zero', { movements: [{ ...classic[0], reps: 0 }] }, 'repetições'],
+    ['rounds negativos', { completedRounds: -1 }, 'não negativos'],
+    ['reps adicionais >= round', { additionalReps: 30, totalReps: 600 }, 'adicionais'],
+    ['splits decrescentes', { roundSplitsMs: [2000, 1000] }, 'crescente'],
+    ['split negativo', { roundSplitsMs: [-1] }, 'crescente'],
+    ['rpe fora da faixa', { rpe: 11 }, 'esforço'],
+    ['rpe fracionário', { rpe: 7.5 }, 'esforço'],
+    ['parcial fora do movimento', { partial: { movementIndex: 5, reps: 0 } }, 'parcial'],
+    ['parcial com reps demais', { partial: { movementIndex: 0, reps: 5 } }, 'parcial'],
+  ])('rejeita treino com %s', (_name, overrides, message) => {
+    expect(() => migrateBackup(withSession(overrides))).toThrow(message);
   });
 
-  it('rejects duplicate identifiers before a database operation can start', () => {
-    const backup = validBackup();
-    backup.sessions.push({ ...session });
-    expect(() => validateBackup(backup)).toThrow(/identificadores de treino duplicados/i);
+  it('recalcula total e chave de comparação desatualizados', () => {
+    const session = makeSession('2025-01-06');
+    const [restored] = migrateBackup(withSession({ totalReps: 301, comparisonKey: 'x' })).sessions;
+    expect(restored.totalReps).toBe(session.totalReps);
+    expect(restored.comparisonKey).toBe(session.comparisonKey);
   });
-
-  it('reports malformed JSON separately from an unsupported backup', () => {
-    expect(() => parseBackupJson('{')).toThrow('JSON válido');
+  it('aceita rpe e parcial válidos', () => {
+    expect(() => migrateBackup(withSession({ rpe: 10, partial: { movementIndex: 0, reps: 4 }, roundSplitsMs: [1000, 1000, 2500] }))).not.toThrow();
   });
-});
-
-describe('backup restoration', () => {
-  it('rolls back all writes when a restore operation fails', async () => {
-    const state = { deleted: false, inserted: 0 };
-    type FakeDatabase = {
-      execAsync: () => Promise<void>;
-      runAsync: () => Promise<void>;
-      withExclusiveTransactionAsync: (task: (transaction: FakeDatabase) => Promise<void>) => Promise<void>;
-    };
-    const database: FakeDatabase = {
-      execAsync: async () => { state.deleted = true; },
-      runAsync: async () => { state.inserted += 1; throw new Error('disk full'); },
-      withExclusiveTransactionAsync: async (task) => {
-        const snapshot = { ...state };
-        try { await task(database); } catch (error) { Object.assign(state, snapshot); throw error; }
-      },
-    };
-    await expect(restoreBackupData(validateBackup(validBackup()), database as never)).rejects.toThrow('disk full');
-    expect(state).toEqual({ deleted: false, inserted: 0 });
+  it('rejeita data de exportação inválida', () => {
+    expect(() => migrateBackup({ ...v1(), exportedAt: 'ontem' })).toThrow('exportação');
   });
-
-  it('does not modify the database when validation fails', async () => {
-    let writes = 0;
-    const database = { execAsync: async () => { writes += 1; } } as never;
-    await expect(restoreBackupContents({ schemaVersion: 99 }, database)).rejects.toThrow(/não compatível/i);
-    expect(writes).toBe(0);
+  it('rejeita ids de treino duplicados', () => {
+    const session = makeSession('2025-01-06');
+    expect(() => migrateBackup({ ...v1(), sessions: [session, { ...session }] })).toThrow('duplicados');
+  });
+  it('rejeita calendários inválidos', () => {
+    expect(() => migrateBackup(withSchedule({ weekdays: [1, 1] }))).toThrow('repetidos');
+    expect(() => migrateBackup(withSchedule({ weekdays: [-1] }))).toThrow('0 a 6');
+    expect(() => migrateBackup(withSchedule({ weekdays: [1.5] }))).toThrow('0 a 6');
+    expect(() => migrateBackup(withSchedule({ effectiveFrom: '2025-13-01' }))).toThrow('data de início');
+    expect(() => migrateBackup({ ...v1(), schedules: [period('2025-01-01', [1]), period('2025-01-01', [2])] })).toThrow('duplicados');
+  });
+  it('não altera o objeto de entrada', () => {
+    const raw = withSession({});
+    const copy = JSON.stringify(raw);
+    migrateBackup(raw);
+    expect(JSON.stringify(raw)).toBe(copy);
   });
 });

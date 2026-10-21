@@ -1,9 +1,20 @@
 import { getDatabase } from './client';
 import { AppSettings, SchedulePeriod, WorkoutSession } from '../domain/models';
+import { addDays, localDateString } from '../domain/dates';
+import { normalizeSettings, SETTING_KEYS } from '../domain/settings';
 import { comparisonKey, repsPerRound, totalReps } from '../domain/scoring';
-import { addDays, localDate } from '../domain/dates';
 
 type SessionRow = Record<string, unknown>;
+
+const parseJson = <T,>(value: unknown, fallback: T): T => {
+  if (typeof value !== 'string' || value === '') return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+};
+
 const mapSession = (row: SessionRow): WorkoutSession => ({
   id: String(row.id), createdAt: String(row.created_at), startedAt: String(row.started_at),
   finishedAt: row.finished_at ? String(row.finished_at) : undefined, updatedAt: String(row.updated_at),
@@ -15,14 +26,20 @@ const mapSession = (row: SessionRow): WorkoutSession => ({
   notes: row.notes ? String(row.notes) : undefined, localDate: String(row.local_date),
   pausedAt: row.paused_at ? String(row.paused_at) : undefined, pausedDurationMs: Number(row.paused_duration_ms),
   elapsedBeforePauseMs: Number(row.elapsed_before_pause_ms),
-  restStartedAt: row.rest_started_at ? String(row.rest_started_at) : undefined,
-  restDurationSeconds: row.rest_duration_seconds ? Number(row.rest_duration_seconds) : undefined,
+  roundSplitsMs: parseJson<number[]>(row.round_splits_json, []),
+  rpe: row.rpe === null || row.rpe === undefined ? undefined : Number(row.rpe),
+  partial: parseJson<WorkoutSession['partial']>(row.partial_json, undefined),
 });
 
 export const listSessions = async (completedOnly = false) => {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SessionRow>(`SELECT * FROM workout_sessions ${completedOnly ? "WHERE status = 'completed'" : ''} ORDER BY created_at DESC`);
   return rows.map(mapSession);
+};
+export const getSession = async (id: string) => {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<SessionRow>('SELECT * FROM workout_sessions WHERE id = ?', id);
+  return row ? mapSession(row) : undefined;
 };
 export const getActiveSession = async () => {
   const db = await getDatabase();
@@ -32,44 +49,30 @@ export const getActiveSession = async () => {
 export const saveSession = async (session: WorkoutSession) => {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT OR REPLACE INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms, rest_started_at, rest_duration_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms, round_splits_json, rpe, partial_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.id, session.createdAt, session.startedAt, session.finishedAt ?? null, session.updatedAt, session.status, session.presetId,
     session.durationSeconds, JSON.stringify(session.movements), session.completedRounds, session.additionalReps, session.totalReps,
     session.comparisonKey, session.completionType ?? null, session.notes ?? null, session.localDate, session.pausedAt ?? null,
-    session.pausedDurationMs, session.elapsedBeforePauseMs, session.restStartedAt ?? null, session.restDurationSeconds ?? null,
+    session.pausedDurationMs, session.elapsedBeforePauseMs,
+    JSON.stringify(session.roundSplitsMs ?? []), session.rpe ?? null, session.partial ? JSON.stringify(session.partial) : null,
   );
+};
+/** Aplica um patch, recalcula totalReps e persiste. Retorna a sessão atualizada (ou undefined se não existe). */
+export const updateSession = async (id: string, patch: Partial<Omit<WorkoutSession, 'id'>>) => {
+  const current = await getSession(id);
+  if (!current) return undefined;
+  const merged: WorkoutSession = { ...current, ...patch, id, updatedAt: new Date().toISOString() };
+  merged.totalReps = totalReps(merged.completedRounds, merged.additionalReps, merged);
+  await saveSession(merged);
+  return merged;
 };
 export const deleteSession = async (id: string) => (await getDatabase()).runAsync('DELETE FROM workout_sessions WHERE id = ?', id);
 
-export const defaultSettings: AppSettings = {
-  onboardingComplete: false, remindersEnabled: false, reminderTime: '18:00',
-  trackingStartDate: localDate(), timerDisplay: 'numeric',
-  workoutLayout: 'detailed', themeIntensity: 'vibrant', hapticsEnabled: true,
-  soundsEnabled: true, reduceMotion: false,
-};
-export const normalizeSettings = (value: Partial<AppSettings> = {}): AppSettings => {
-  const merged = { ...defaultSettings, ...value };
-  return {
-    ...merged,
-    onboardingComplete: typeof merged.onboardingComplete === 'boolean' ? merged.onboardingComplete : defaultSettings.onboardingComplete,
-    remindersEnabled: typeof merged.remindersEnabled === 'boolean' ? merged.remindersEnabled : defaultSettings.remindersEnabled,
-    reminderTime: typeof merged.reminderTime === 'string' ? merged.reminderTime : defaultSettings.reminderTime,
-    trackingStartDate: typeof merged.trackingStartDate === 'string' ? merged.trackingStartDate : defaultSettings.trackingStartDate,
-    timerDisplay: merged.timerDisplay === 'circular' ? 'circular' : 'numeric',
-    workoutLayout: merged.workoutLayout === 'compact' ? 'compact' : 'detailed',
-    themeIntensity: merged.themeIntensity === 'discreet' || merged.themeIntensity === 'contrast' ? merged.themeIntensity : 'vibrant',
-    hapticsEnabled: typeof merged.hapticsEnabled === 'boolean' ? merged.hapticsEnabled : defaultSettings.hapticsEnabled,
-    soundsEnabled: typeof merged.soundsEnabled === 'boolean' ? merged.soundsEnabled : defaultSettings.soundsEnabled,
-    reduceMotion: typeof merged.reduceMotion === 'boolean' ? merged.reduceMotion : defaultSettings.reduceMotion,
-  };
-};
 export const getSettings = async () => {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
-  const stored = rows.reduce<Record<string, unknown>>((settings, row) => {
-    try { settings[row.key] = JSON.parse(row.value); } catch { /* retain the safe default */ }
-    return settings;
-  }, {});
+  const stored: Record<string, unknown> = {};
+  for (const row of rows) stored[row.key] = parseJson<unknown>(row.value, undefined);
   return normalizeSettings(stored);
 };
 export const saveSettings = async (settings: AppSettings) => {
@@ -77,16 +80,20 @@ export const saveSettings = async (settings: AppSettings) => {
   const normalized = normalizeSettings(settings);
   await db.withTransactionAsync(async () => {
     for (const [key, value] of Object.entries(normalized)) await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', key, JSON.stringify(value));
+    await db.runAsync(`DELETE FROM app_settings WHERE key NOT IN (${SETTING_KEYS.map(() => '?').join(', ')})`, ...SETTING_KEYS);
   });
-  return normalized;
 };
 export const getSchedule = async () => {
-  const rows = await (await getDatabase()).getAllAsync<{ id: string; effective_from: string; weekdays_json: string }>('SELECT * FROM training_schedule_periods ORDER BY effective_from');
+  const rows = await (await getDatabase()).getAllAsync<{ id: string; effective_from: string; weekdays_json: string }>('SELECT * FROM training_schedule_periods ORDER BY effective_from, rowid');
   return rows.map((row) => ({ id: row.id, effectiveFrom: row.effective_from, weekdays: JSON.parse(row.weekdays_json) }) as SchedulePeriod);
 };
-export const saveSchedule = async (weekdays: number[]) => {
-  const effectiveFrom = addDays(localDate(), 1);
-  await saveSchedulePeriod({ id: `schedule-${Date.now()}`, effectiveFrom, weekdays });
+/** Novo calendário vale a partir de `effectiveFrom` (padrão: amanhã; o onboarding passa hoje); substitui um período já criado para a mesma data. */
+export const saveSchedule = async (weekdays: number[], effectiveFrom: string = addDays(localDateString(), 1)) => {
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM training_schedule_periods WHERE effective_from = ?', effectiveFrom);
+    await saveSchedulePeriod({ id: `schedule-${Date.now()}`, effectiveFrom, weekdays });
+  });
 };
 export const saveSchedulePeriod = async (period: SchedulePeriod) =>
   (await getDatabase()).runAsync('INSERT INTO training_schedule_periods (id, effective_from, weekdays_json) VALUES (?, ?, ?)', period.id, period.effectiveFrom, JSON.stringify(period.weekdays));
@@ -97,6 +104,7 @@ export const createSession = (config: WorkoutSession): WorkoutSession => ({
   totalReps: totalReps(config.completedRounds, config.additionalReps, config),
   pausedDurationMs: config.pausedDurationMs ?? 0,
   elapsedBeforePauseMs: config.elapsedBeforePauseMs ?? 0,
+  roundSplitsMs: config.roundSplitsMs ?? [],
 });
 
 export const sessionRoundReps = (session: WorkoutSession) => repsPerRound(session);

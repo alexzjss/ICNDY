@@ -1,30 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { personalBests } from '../src/domain/records';
+import { PRESETS } from '../src/domain/presets';
+import { comparisonKey } from '../src/domain/scoring';
+import { comparableSessions, personalBests } from '../src/domain/records';
+import { makeSession } from './fixtures';
 
-const make = (id: string, totalReps: number, comparisonKey: string, status: 'completed' | 'active' = 'completed') => ({
-  id, createdAt: id, startedAt: id, updatedAt: id, status, presetId: 'classic' as const,
-  durationSeconds: 1200, movements: [], completedRounds: totalReps, additionalReps: 0, totalReps,
-  comparisonKey, localDate: '2026-01-01', pausedDurationMs: 0, elapsedBeforePauseMs: 0,
-});
-
-const configured = (id: string, totalReps: number, durationSeconds: number, movementKey: string) => ({
-  ...make(id, totalReps, 'stale-key'),
-  durationSeconds,
-  movements: [{ key: movementKey, label: movementKey, reps: 10, group: 'push' as const }],
-});
+const beginner = PRESETS[1];
+const other = (id: string, totalReps: number) =>
+  makeSession('2026-01-01', {
+    id, presetId: 'beginner', totalReps, durationSeconds: beginner.durationMinutes * 60, movements: beginner.movements,
+    comparisonKey: comparisonKey({ durationSeconds: beginner.durationMinutes * 60, movements: beginner.movements }),
+  });
 
 describe('personal records', () => {
   it('selects only the highest completed result per comparable configuration', () => {
-    const bests = personalBests([make('a', 100, 'same'), make('b', 120, 'same'), make('c', 999, 'other'), make('d', 200, 'ignored', 'active')]);
+    const bests = personalBests([
+      makeSession('2026-01-01', { id: 'a', totalReps: 100 }),
+      makeSession('2026-01-02', { id: 'b', totalReps: 120 }),
+      other('c', 999),
+      makeSession('2026-01-03', { id: 'd', totalReps: 500, status: 'active' }),
+    ]);
     expect(bests.map((item) => item.id)).toEqual(['b', 'c']);
   });
-  it('does not compare different durations or movements', () => {
-    const bests = personalBests([
-      configured('same-a', 100, 1200, 'push-up'),
-      configured('same-b', 120, 1200, 'push-up'),
-      configured('different-duration', 999, 600, 'push-up'),
-      configured('different-movement', 999, 1200, 'incline-push-up'),
-    ]);
-    expect(bests.map((item) => item.id)).toEqual(['same-b', 'different-duration', 'different-movement']);
+  it('keeps the oldest session on a tie, like findPersonalBest', () => {
+    const bests = personalBests([makeSession('2026-01-01', { id: 'old', totalReps: 100 }), makeSession('2026-01-02', { id: 'new', totalReps: 100 })]);
+    expect(bests.map((item) => item.id)).toEqual(['old']);
+  });
+  it('groups only completed sessions by comparison key', () => {
+    const groups = comparableSessions([makeSession('2026-01-01'), makeSession('2026-01-02', { status: 'abandoned' }), other('x', 10)]);
+    expect([...groups.values()].map((group) => group.length).sort()).toEqual([1, 1]);
   });
 });

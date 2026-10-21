@@ -4,19 +4,21 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
 } from "react";
 import {
+  deleteSession,
   getActiveSession,
   getSchedule,
   getSettings,
   listSessions,
+  saveSession,
   saveSettings,
-  defaultSettings,
 } from "../database/repositories";
+import { defaultSettings } from "../domain/settings";
 import { AppSettings, SchedulePeriod, WorkoutSession } from "../domain/models";
-import { prepareFeedbackSounds, unloadFeedbackSound } from "../services/feedback";
-import { getThemeColors, ThemeColors } from "../theme";
 
 type ContextValue = {
   sessions: WorkoutSession[];
@@ -25,12 +27,20 @@ type ContextValue = {
   schedule: SchedulePeriod[];
   isInitialized: boolean;
   initializationError?: Error;
+  /** Recarrega tudo do banco (após concluir/descartar/restaurar). Aguarda gravações pendentes. */
   refresh: () => Promise<void>;
   retryInitialization: () => Promise<void>;
   updateSettings: (settings: AppSettings) => Promise<void>;
-  theme: ThemeColors;
+  /** Atualiza `active` de forma otimista e persiste em fila serializada (sem recarregar a lista). */
+  saveActive: (session: WorkoutSession) => Promise<void>;
+  /** Persiste o treino como concluído e recarrega os dados. */
+  finishSession: (session: WorkoutSession) => Promise<void>;
+  /** Remove um treino e recarrega os dados. */
+  discardSession: (id: string) => Promise<void>;
 };
+
 const AppContext = createContext<ContextValue | undefined>(undefined);
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [active, setActive] = useState<WorkoutSession>();
@@ -38,8 +48,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [schedule, setSchedule] = useState<SchedulePeriod[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializationError, setInitializationError] = useState<Error>();
+  const queue = useRef<Promise<void>>(Promise.resolve());
+
+  const enqueue = useCallback((task: () => Promise<void>) => {
+    const run = queue.current.then(task);
+    queue.current = run.catch(() => undefined);
+    return run;
+  }, []);
 
   const loadData = useCallback(async () => {
+    await queue.current;
     const [nextSessions, nextActive, nextSettings, nextSchedule] =
       await Promise.all([
         listSessions(true),
@@ -60,56 +78,83 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       await loadData();
     } catch (error) {
-      const normalizedError =
+      setInitializationError(
         error instanceof Error
           ? error
-          : new Error("Unable to initialize local training data.");
-      setInitializationError(normalizedError);
+          : new Error("Não foi possível iniciar os dados locais."),
+      );
     } finally {
       setIsInitialized(true);
     }
   }, [loadData]);
 
-  const refresh = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
-
   useEffect(() => {
     void initialize();
-    return () => {
-      void unloadFeedbackSound();
-    };
   }, [initialize]);
 
-  useEffect(() => {
-    if (settings.soundsEnabled) {
-      void prepareFeedbackSounds().catch((error) => console.warn("Não foi possível preparar os sons do treino.", error));
-    }
-  }, [settings.soundsEnabled]);
+  const updateSettings = useCallback(async (next: AppSettings) => {
+    await enqueue(() => saveSettings(next));
+    setSettings(next);
+  }, [enqueue]);
 
-  const updateSettings = async (next: AppSettings) => {
-    const normalized = await saveSettings(next);
-    setSettings(normalized);
-  };
-
-  return (
-    <AppContext.Provider
-      value={{
-        sessions,
-        active,
-        settings,
-        schedule,
-        isInitialized,
-        initializationError,
-        refresh,
-        retryInitialization: initialize,
-        updateSettings,
-        theme: getThemeColors(settings.themeIntensity),
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  const saveActive = useCallback(
+    (session: WorkoutSession) => {
+      setActive(session);
+      return enqueue(() => saveSession(session));
+    },
+    [enqueue],
   );
+
+  const finishSession = useCallback(
+    async (session: WorkoutSession) => {
+      await enqueue(() => saveSession(session));
+      await loadData();
+    },
+    [enqueue, loadData],
+  );
+
+  const discardSession = useCallback(
+    async (id: string) => {
+      await enqueue(async () => {
+        await deleteSession(id);
+      });
+      await loadData();
+    },
+    [enqueue, loadData],
+  );
+
+  const value = useMemo<ContextValue>(
+    () => ({
+      sessions,
+      active,
+      settings,
+      schedule,
+      isInitialized,
+      initializationError,
+      refresh: loadData,
+      retryInitialization: initialize,
+      updateSettings,
+      saveActive,
+      finishSession,
+      discardSession,
+    }),
+    [
+      sessions,
+      active,
+      settings,
+      schedule,
+      isInitialized,
+      initializationError,
+      loadData,
+      initialize,
+      updateSettings,
+      saveActive,
+      finishSession,
+      discardSession,
+    ],
+  );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 export const useApp = () => {
   const context = useContext(AppContext);

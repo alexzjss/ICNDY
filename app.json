@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icndy.png",
     "scheme": "icndy",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -14,7 +14,7 @@
     "android": {
       "package": "com.icndy.app",
       "adaptiveIcon": {
-        "backgroundColor": "#080B08",
+        "backgroundColor": "#0B0B0D",
         "foregroundImage": "./assets/images/icndy.png"
       },
       "edgeToEdgeEnabled": true,
@@ -41,9 +41,9 @@
           "image": "./assets/images/icndy.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#080B08",
+          "backgroundColor": "#0B0B0D",
           "dark": {
-            "backgroundColor": "#080B08"
+            "backgroundColor": "#0B0B0D"
           }
         }
       ],
