@@ -38,12 +38,13 @@ export const Hud = memo(({ tone, timer, completedRounds, movements, pop }: HudPr
   const dark = tone === 'dark';
   const fg = dark ? colors.bg : colors.text;
   const sub = dark ? withAlpha(colors.bg, 0.7) : colors.muted;
-  const size = Math.min(width * 0.42, 200);
+  // Barlow Condensed: "00:00" ocupa ~2,3em; adjustsFontSizeToFit garante que caiba em telas estreitas.
+  const size = Math.min((width - 32) / 2.3, 220);
   const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
 
   return (
     <View pointerEvents="none" style={styles.fill}>
-      <Text style={[styles.clock, { fontSize: size, lineHeight: size * 0.95, color: fg }]} numberOfLines={1}>
+      <Text style={[styles.clock, { fontSize: size, lineHeight: size * 0.95, color: fg, width: width - 32 }]} numberOfLines={1} adjustsFontSizeToFit>
         {text}
       </Text>
       <Animated.View style={[styles.roundRow, popStyle]}>

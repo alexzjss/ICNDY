@@ -67,7 +67,8 @@ export default function SessionDetailScreen() {
     if (saving) return;
     setSaving(true);
     try {
-      await updateSession(session.id, { completedRounds: rounds, additionalReps: additional, partial, rpe, notes: notes.trim() || undefined });
+      // Splits além dos rounds editados deixam de valer; rounds extras ficam sem split registrado.
+      await updateSession(session.id, { completedRounds: rounds, additionalReps: additional, partial, rpe, notes: notes.trim() || undefined, roundSplitsMs: session.roundSplitsMs.slice(0, rounds) });
       await refresh();
       setEditing(false);
       toast.show({ message: 'Treino atualizado', variant: 'success' });

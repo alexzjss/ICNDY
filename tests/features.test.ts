@@ -68,6 +68,7 @@ describe('chart math', () => {
     expect(buildPoints([5], 100, 50)).toEqual([{ x: 50, y: 25 }]);
     expect(buildPoints([5, 5], 100, 50).map((p) => p.y)).toEqual([25, 25]);
     expect(buildPoints([], 100, 50)).toEqual([]);
+    expect(buildPoints([1, 2, 3], 100, 50, undefined, [0, 1, 10]).map((p) => p.x)).toEqual([0, 10, 100]);
   });
   it('measures and closes paths', () => {
     expect(polylineLength([{ x: 0, y: 0 }, { x: 3, y: 4 }])).toBe(5);

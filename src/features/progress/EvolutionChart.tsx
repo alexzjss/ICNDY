@@ -13,7 +13,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Chip, SPRING, Text } from '../../components';
-import { formatDayMonth } from '../../domain/dates';
+import { diffDays, formatDayMonth } from '../../domain/dates';
 import { WorkoutSession } from '../../domain/models';
 import { colors } from '../../theme';
 import { areaPath, buildPoints, linePath, polylineLength } from './chartMath';
@@ -55,7 +55,9 @@ const ChartBody = ({ points, width }: BodyProps) => {
   const progress = useSharedValue(reduced ? 1 : 0);
   const values = useMemo(() => points.map((p) => p.totalReps), [points]);
   const plotH = HEIGHT - AXIS_H;
-  const coords = useMemo(() => buildPoints(values, width, plotH, PAD), [values, width, plotH]);
+  // Eixo x proporcional ao tempo: intervalos longos entre treinos ficam visíveis.
+  const days = useMemo(() => points.map((p) => diffDays(points[0].date, p.date)), [points]);
+  const coords = useMemo(() => buildPoints(values, width, plotH, PAD, days), [values, width, plotH, days]);
   const length = Math.max(1, polylineLength(coords));
   const pr = prIndex(points);
   const min = Math.min(...values);
@@ -70,7 +72,19 @@ const ChartBody = ({ points, width }: BodyProps) => {
   const areaProps = useAnimatedProps(() => ({ opacity: progress.value }));
 
   const base = plotH - PAD.bottom;
-  const labelIdx = points.length <= 1 ? [0] : points.length === 2 ? [0, 1] : [0, Math.floor((points.length - 1) / 2), points.length - 1];
+  // Rótulos nas pontas + o ponto mais próximo do centro (omitido se colidir com as pontas).
+  const labelIdx = useMemo(() => {
+    if (coords.length <= 1) return [0];
+    const last = coords.length - 1;
+    const mid = width / 2;
+    let best = -1;
+    coords.forEach((c, i) => {
+      if (i === 0 || i === last) return;
+      if (best === -1 || Math.abs(c.x - mid) < Math.abs(coords[best].x - mid)) best = i;
+    });
+    const fits = best !== -1 && coords[best].x - coords[0].x > 72 && coords[last].x - coords[best].x > 72;
+    return fits ? [0, best, last] : [0, last];
+  }, [coords, width]);
   const gridValues = max === min ? [max] : [max, Math.round((max + min) / 2), min];
   const gridYs = max === min ? [plotH / 2] : [PAD.top, PAD.top + (plotH - PAD.top - PAD.bottom) / 2, plotH - PAD.bottom];
 

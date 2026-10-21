@@ -1,18 +1,22 @@
 export type Point = { x: number; y: number };
 
 /**
- * Converte valores em pontos num retângulo. x distribuído igualmente (um único ponto fica no centro);
+ * Converte valores em pontos num retângulo. x distribuído igualmente, ou proporcional a `xs` quando
+ * informado (ex.: dias desde o primeiro treino); um único ponto fica no centro.
  * y invertido (maior valor no topo). Se todos forem iguais, a linha fica no meio.
  */
-export const buildPoints = (values: number[], width: number, height: number, pad = { left: 0, right: 0, top: 0, bottom: 0 }): Point[] => {
+export const buildPoints = (values: number[], width: number, height: number, pad = { left: 0, right: 0, top: 0, bottom: 0 }, xs?: number[]): Point[] => {
   if (values.length === 0) return [];
   const innerW = Math.max(0, width - pad.left - pad.right);
   const innerH = Math.max(0, height - pad.top - pad.bottom);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
+  const xMin = xs ? Math.min(...xs) : 0;
+  const xRange = xs ? Math.max(...xs) - xMin : values.length - 1;
+  const xOf = (index: number) => (xs ? xs[index] - xMin : index);
   return values.map((value, index) => ({
-    x: pad.left + (values.length === 1 ? innerW / 2 : (innerW * index) / (values.length - 1)),
+    x: pad.left + (values.length === 1 || xRange === 0 ? innerW / 2 : (innerW * xOf(index)) / xRange),
     y: pad.top + (range === 0 ? innerH / 2 : innerH * (1 - (value - min) / range)),
   }));
 };
