@@ -25,3 +25,12 @@ export const weekdayOf = (dateStr: string) => new Date(utcValue(dateStr)).getUTC
 
 /** Diferença em dias (b - a) entre duas datas YYYY-MM-DD. */
 export const diffDays = (a: string, b: string) => Math.round((utcValue(b) - utcValue(a)) / 86400000);
+
+const WEEKDAYS_PT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "ter, 21 out" para uma data YYYY-MM-DD (sem depender de Intl). */
+export const formatDayMonth = (dateStr: string) => {
+  const { month, day } = parts(dateStr);
+  return `${WEEKDAYS_PT[weekdayOf(dateStr)]}, ${day} ${MONTHS_PT[month - 1]}`;
+};

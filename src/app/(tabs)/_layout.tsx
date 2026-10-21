@@ -1,20 +1,16 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, fonts } from '../../theme';
+import { TabBar } from '../../components';
+import { colors } from '../../theme';
 
+// Apenas duas rotas reais (Início, Progresso). O botão central TREINAR é desenhado pelo TabBar custom.
 export default function TabLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line },
-        tabBarLabelStyle: { fontFamily: fonts.bodySemibold },
-      }}
+      tabBar={(props) => <TabBar {...props} />}
+      screenOptions={{ headerShown: false, animation: 'fade', sceneStyle: { backgroundColor: colors.bg } }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: ({ color }) => <Ionicons name="flash" size={20} color={color} /> }} />
-      <Tabs.Screen name="progress" options={{ title: 'Progresso', tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={20} color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Início' }} />
+      <Tabs.Screen name="progress" options={{ title: 'Progresso' }} />
     </Tabs>
   );
 }

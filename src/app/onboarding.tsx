@@ -1,24 +1,66 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Button, Card, Label, Screen, Title } from '../components/ui';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Button, Card, Screen, StaggerIn, Text } from '../components';
 import { useApp } from '../context/AppContext';
 import { saveSchedule } from '../database/repositories';
-import { colors } from '../theme';
+import { localDateString } from '../domain/dates';
+import { colors, fonts } from '../theme';
+
+const DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
 export default function OnboardingScreen() {
-  const { settings, updateSettings, refresh } = useApp(); const [days, setDays] = useState([1, 3, 5]); const [saving, setSaving] = useState(false);
+  const { settings, updateSettings, refresh } = useApp();
+  const [days, setDays] = useState([1, 3, 5]);
+  const [saving, setSaving] = useState(false);
   const finish = async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await saveSchedule(days);
+      // A agenda escolhida vale a partir de hoje (substitui o período inicial).
+      await saveSchedule(days, localDateString());
       await updateSettings({ ...settings, onboardingComplete: true });
       await refresh();
     } catch (error) {
-      Alert.alert("Could not finish setup", error instanceof Error ? error.message : "Your settings were not saved.");
+      Alert.alert('Não foi possível concluir', error instanceof Error ? error.message : 'Suas configurações não foram salvas.');
     } finally {
       setSaving(false);
     }
   };
-  return <Screen><View style={styles.hero}><Text style={styles.wordmark}>ICNDY</Text><Label>YOUR BENCHMARK, YOUR LOG</Label><Title>Train with intent.</Title><Text style={styles.copy}>A focused offline companion for Cindy. Track the work, build the habit, keep the record.</Text></View><Card><Label>Planned training days</Label><Text style={styles.copy}>Pick the days you aim to train. Rest days never break your streak.</Text><View style={styles.days}>{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <Pressable key={`${day}-${index}`} onPress={() => setDays(days.includes(index) ? days.filter((item) => item !== index) : [...days, index].sort())} style={[styles.day, days.includes(index) && styles.active]}><Text style={[styles.dayText, days.includes(index) && styles.activeText]}>{day}</Text></Pressable>)}</View></Card><Button onPress={finish}>{saving ? 'Saving…' : 'Enter ICNDY'}</Button><Text style={styles.notice}>You can change this schedule any time. Reminders are optional and can be enabled later.</Text></Screen>;
+  return (
+    <Screen>
+      <StaggerIn index={0} style={styles.hero}>
+        <Text variant="display" color={colors.accent}>ICNDY</Text>
+        <Text variant="label">Seu benchmark, seu registro</Text>
+        <Text variant="title">Treine com intenção.</Text>
+        <Text variant="body" color={colors.muted}>Um companheiro offline para o Cindy. Registre o trabalho, construa o hábito, guarde o recorde.</Text>
+      </StaggerIn>
+      <StaggerIn index={1}>
+        <Card>
+          <Text variant="label">Dias de treino planejados</Text>
+          <Text variant="body" color={colors.muted}>Escolha os dias em que pretende treinar. Dias de descanso nunca quebram sua sequência.</Text>
+          <View style={styles.days}>
+            {DAYS.map((day, index) => {
+              const on = days.includes(index);
+              return (
+                <Pressable key={index} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => setDays(on ? days.filter((d) => d !== index) : [...days, index].sort())} style={[styles.day, on && styles.dayOn]}>
+                  <Text style={{ fontFamily: fonts.displayBold, fontSize: 18, color: on ? colors.onAccent : colors.muted }}>{day}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      </StaggerIn>
+      <StaggerIn index={2}>
+        <Button loading={saving} onPress={finish}>Entrar no ICNDY</Button>
+      </StaggerIn>
+      <Text variant="caption" align="center">Você pode mudar a agenda quando quiser. Os lembretes são opcionais e podem ser ativados depois.</Text>
+    </Screen>
+  );
 }
-const styles = StyleSheet.create({ hero: { gap: 12, paddingTop: 40, paddingBottom: 20 }, wordmark: { color: colors.lime, fontSize: 54, fontWeight: '900', letterSpacing: -4 }, copy: { color: colors.muted, lineHeight: 22, fontSize: 15 }, days: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }, day: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }, active: { backgroundColor: colors.lime }, dayText: { color: colors.muted, fontWeight: '900' }, activeText: { color: colors.ink }, notice: { color: colors.muted, textAlign: 'center', fontSize: 12, lineHeight: 18 } });
+
+const styles = StyleSheet.create({
+  hero: { gap: 8, paddingTop: 40, paddingBottom: 12 },
+  days: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  day: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
+  dayOn: { backgroundColor: colors.accent },
+});

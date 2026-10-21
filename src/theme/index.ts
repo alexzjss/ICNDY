@@ -13,9 +13,6 @@ export const colors = {
   accentAlt: '#FF4FA3',
   onAccent: '#0B0B0D',
   white: '#FFFFFF',
-  // Aliases temporários para as telas ainda não redesenhadas.
-  ink: '#0B0B0D',
-  lime: '#FF7A1A',
 };
 
 export const movementColors: Record<MovementKey, string> = {
@@ -42,3 +39,12 @@ export const fonts = {
 
 export const spacing = { xs: 6, sm: 10, md: 16, lg: 24, xl: 32, xxl: 48 };
 export const radius = { sm: 8, md: 14, lg: 20, pill: 999 };
+
+/** Gradiente de destaque (laranja -> rosa). */
+export const gradients = {
+  accent: ['#FF7A1A', '#FF4FA3'] as const,
+};
+
+/** Adiciona alpha (0-1) a uma cor #RRGGBB. */
+export const withAlpha = (hex: string, alpha: number) =>
+  `${hex}${Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0')}`;

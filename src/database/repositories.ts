@@ -83,9 +83,8 @@ export const getSchedule = async () => {
   const rows = await (await getDatabase()).getAllAsync<{ id: string; effective_from: string; weekdays_json: string }>('SELECT * FROM training_schedule_periods ORDER BY effective_from, rowid');
   return rows.map((row) => ({ id: row.id, effectiveFrom: row.effective_from, weekdays: JSON.parse(row.weekdays_json) }) as SchedulePeriod);
 };
-/** Novo calendário vale a partir de amanhã; substitui um período já criado para a mesma data. */
-export const saveSchedule = async (weekdays: number[]) => {
-  const effectiveFrom = addDays(localDateString(), 1);
+/** Novo calendário vale a partir de `effectiveFrom` (padrão: amanhã; o onboarding passa hoje); substitui um período já criado para a mesma data. */
+export const saveSchedule = async (weekdays: number[], effectiveFrom: string = addDays(localDateString(), 1)) => {
   const db = await getDatabase();
   await db.withTransactionAsync(async () => {
     await db.runAsync('DELETE FROM training_schedule_periods WHERE effective_from = ?', effectiveFrom);

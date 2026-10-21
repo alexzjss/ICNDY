@@ -1,24 +1,69 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from "expo-router";
-import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Label, Screen, Title } from '../../components/ui';
-import { SessionCard } from '../../components/SessionCard';
+import { StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { AnimatedNumber, Button, Card, EmptyState, Header, IconButton, Screen, SessionCard, StaggerIn, staggerEntering, Text } from '../../components';
 import { useApp } from '../../context/AppContext';
 import { addDays, localDateString } from '../../domain/dates';
 import { sessionTitle } from '../../domain/presets';
 import { calculateStreaks } from '../../domain/streaks';
 import { colors } from '../../theme';
+
 export default function HomeScreen() {
   const router = useRouter();
   const { sessions, active, schedule } = useApp();
   const streak = useMemo(() => calculateStreaks(sessions, schedule, localDateString()).current, [sessions, schedule]);
   const weekStart = addDays(localDateString(), -6);
-  return <Screen><View style={styles.header}><View><Label>ICNDY / TRAINING LOG</Label><Title>Make today count.</Title></View><Pressable accessibilityLabel="Ajustes" onPress={() => router.push('/settings')}><Ionicons name="settings-outline" size={26} color={colors.muted} /></Pressable></View>
-    <Card><View style={styles.metricRow}><View><Label>Current streak</Label><Text style={styles.metric}>{streak}<Text style={styles.unit}> days</Text></Text></View><View><Label>This week</Label><Text style={styles.metric}>{sessions.filter((session) => session.localDate >= weekStart).length}<Text style={styles.unit}> sessions</Text></Text></View></View></Card>
-    {active ? <Card><Label>Workout in progress</Label><Title size={22}>{sessionTitle(active)}</Title><Button onPress={() => router.push('/workout/active')}>Resume workout</Button></Card> : <Button onPress={() => router.push('/workout/setup')}>Start a workout</Button>}
-    <View style={styles.section}><Label>Recent sessions</Label>{sessions.slice(0, 3).map((session) => <SessionCard key={session.id} session={session} />)}{sessions.length === 0 && <Card><Text style={styles.empty}>No sessions yet. Your first benchmark starts here.</Text></Card>}</View>
-    <Text style={styles.notice}>Training is your responsibility. ICNDY is a tracking tool, not medical advice. Stop if an exercise causes pain or concerning symptoms.</Text>
-  </Screen>;
+  const week = sessions.filter((session) => session.localDate >= weekStart).length;
+  return (
+    <Screen tabs>
+      <Header
+        eyebrow="ICNDY"
+        title="Faça hoje valer."
+        right={<IconButton icon="settings-outline" variant="solid" accessibilityLabel="Ajustes" onPress={() => router.push('/settings')} />}
+      />
+      <StaggerIn index={1}>
+        <Card>
+          <View style={styles.metrics}>
+            <View>
+              <Text variant="label">Sequência atual</Text>
+              <View style={styles.inline}>
+                <AnimatedNumber value={streak} fontSize={48} />
+                <Text variant="caption"> dias</Text>
+              </View>
+            </View>
+            <View>
+              <Text variant="label">Últimos 7 dias</Text>
+              <View style={styles.inline}>
+                <AnimatedNumber value={week} fontSize={48} />
+                <Text variant="caption"> treinos</Text>
+              </View>
+            </View>
+          </View>
+        </Card>
+      </StaggerIn>
+      {active ? (
+        <StaggerIn index={2}>
+          <Card accent={colors.accent}>
+            <Text variant="label" color={colors.accent}>Treino em andamento</Text>
+            <Text variant="heading">{sessionTitle(active)}</Text>
+            <Button icon="play" onPress={() => router.push('/workout/active')}>Retomar treino</Button>
+          </Card>
+        </StaggerIn>
+      ) : null}
+      <View style={styles.section}>
+        <Text variant="label">Treinos recentes</Text>
+        {sessions.slice(0, 3).map((session, index) => (
+          <SessionCard key={session.id} session={session} entering={staggerEntering(index + 3)} />
+        ))}
+        {sessions.length === 0 ? <EmptyState title="Nenhum treino ainda" message="Seu primeiro benchmark começa aqui. Toque em TREINAR." /> : null}
+      </View>
+      <Text variant="caption">O treino é de sua responsabilidade. O ICNDY é uma ferramenta de registro, não aconselhamento médico. Pare se algum exercício causar dor ou sintomas preocupantes.</Text>
+    </Screen>
+  );
 }
-const styles = StyleSheet.create({ header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 20 }, mark: { color: colors.lime, fontSize: 28, fontWeight: '900' }, metricRow: { flexDirection: 'row', justifyContent: 'space-between' }, metric: { color: colors.text, fontSize: 30, fontWeight: '900', marginTop: 5 }, unit: { color: colors.muted, fontSize: 14 }, section: { gap: 12 }, empty: { color: colors.muted, lineHeight: 22 }, notice: { color: colors.muted, fontSize: 11, lineHeight: 17 } });
+
+const styles = StyleSheet.create({
+  metrics: { flexDirection: 'row', justifyContent: 'space-between' },
+  inline: { flexDirection: 'row', alignItems: 'baseline' },
+  section: { gap: 12 },
+});

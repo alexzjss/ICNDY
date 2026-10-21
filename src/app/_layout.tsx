@@ -17,7 +17,7 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { AppProvider, useApp } from "../context/AppContext";
-import { Button } from "../components/ui";
+import { Button, ToastProvider } from "../components";
 import { colors } from "../theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -47,6 +47,7 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
+          animation: "slide_from_right",
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
@@ -55,8 +56,8 @@ function RootNavigator() {
         </Stack.Protected>
         <Stack.Protected guard={onboarded}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="settings" />
-          <Stack.Screen name="session/[id]" />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="workout/setup" />
           <Stack.Screen
             name="workout/active"
@@ -90,7 +91,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <AppProvider>
         <StatusBar style="light" />
-        <RootNavigator />
+        <ToastProvider>
+          <RootNavigator />
+        </ToastProvider>
       </AppProvider>
     </GestureHandlerRootView>
   );
