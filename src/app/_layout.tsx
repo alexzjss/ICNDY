@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
@@ -17,10 +17,55 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { AppProvider, useApp } from "../context/AppContext";
-import { Button, ToastProvider } from "../components";
+import { Button, Screen, Text as UIText, ToastProvider } from "../components";
 import { colors } from "../theme";
+import { exportLog, installGlobalErrorLogging, logError } from "../services/log";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+installGlobalErrorLogging();
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const [exportMessage, setExportMessage] = useState<string>();
+
+  useEffect(() => {
+    logError(error, "Erro de tela");
+  }, [error]);
+
+  const doExport = async () => {
+    setExportMessage(undefined);
+    try {
+      await exportLog();
+    } catch (exportError) {
+      setExportMessage(
+        exportError instanceof Error ? exportError.message : "Não foi possível exportar o log.",
+      );
+    }
+  };
+
+  return (
+    <Screen scroll={false} contentContainerStyle={styles.errorBody}>
+      <View style={styles.errorContent}>
+        <UIText variant="title">Algo deu errado</UIText>
+        <UIText variant="body" color={colors.muted}>
+          Ocorreu um erro inesperado. Tente de novo; se continuar, exporte o log e envie para diagnóstico.
+        </UIText>
+        {exportMessage ? (
+          <UIText variant="caption" color={colors.danger}>
+            {exportMessage}
+          </UIText>
+        ) : null}
+      </View>
+      <View style={styles.errorActions}>
+        <Button icon="refresh-outline" onPress={() => retry()}>
+          Tentar novamente
+        </Button>
+        <Button variant="secondary" icon="document-text-outline" onPress={() => void doExport()}>
+          Exportar log
+        </Button>
+      </View>
+    </Screen>
+  );
+}
 
 function RootNavigator() {
   const { isInitialized, initializationError, retryInitialization, settings } =
@@ -123,5 +168,17 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
     lineHeight: 20,
+  },
+  errorBody: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+  },
+  errorContent: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 16,
+  },
+  errorActions: {
+    gap: 12,
   },
 });

@@ -7,6 +7,7 @@ import { Button, Card, Header, Screen, StaggerIn, Text, Toggle, useToast } from 
 import { useApp } from '../context/AppContext';
 import { saveSchedule } from '../database/repositories';
 import { exportBackup, restoreBackup } from '../services/backup';
+import { exportLog } from '../services/log';
 import { cancelReminders, updateTrainingReminders } from '../services/notifications';
 import { DayPicker } from '../features/settings/DayPicker';
 import { TimePicker } from '../features/settings/TimePicker';
@@ -114,6 +115,14 @@ export default function SettingsScreen() {
     }
   };
 
+  const doExportLog = async () => {
+    try {
+      await exportLog();
+    } catch (error) {
+      toast.show({ message: `Falha ao exportar o log: ${error instanceof Error ? error.message : String(error)}`, variant: 'danger' });
+    }
+  };
+
   const doRestore = () =>
     Alert.alert('Substituir dados locais?', 'Isso sobrescreve os treinos e ajustes atuais pelos do arquivo escolhido.', [
       { text: 'Cancelar', style: 'cancel' },
@@ -189,6 +198,7 @@ export default function SettingsScreen() {
         <Text variant="label">Seus dados</Text>
         <Button icon="share-outline" loading={busy === 'export'} disabled={busy !== undefined} onPress={() => void doExport()}>Exportar backup</Button>
         <Button variant="secondary" icon="download-outline" loading={busy === 'restore'} disabled={busy !== undefined} onPress={doRestore}>Restaurar backup</Button>
+        <Button variant="secondary" icon="document-text-outline" disabled={busy !== undefined} onPress={() => void doExportLog()}>Exportar log de diagnóstico</Button>
       </StaggerIn>
 
       <StaggerIn index={5}>
