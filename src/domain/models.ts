@@ -23,6 +23,9 @@ export type WorkoutConfig = {
   movements: MovementOption[];
 };
 
+/** Onde o atleta parou no round incompleto. */
+export type PartialProgress = { movementIndex: number; reps: number };
+
 export type WorkoutSession = WorkoutConfig & {
   id: string;
   createdAt: string;
@@ -40,6 +43,11 @@ export type WorkoutSession = WorkoutConfig & {
   pausedAt?: string;
   pausedDurationMs: number;
   elapsedBeforePauseMs: number;
+  /** Tempo ATIVO decorrido (ms) no momento de cada round concluído (crescente). */
+  roundSplitsMs: number[];
+  /** Esforço percebido 1-10. */
+  rpe?: number;
+  partial?: PartialProgress;
 };
 
 export type SchedulePeriod = {
@@ -53,4 +61,5 @@ export type AppSettings = {
   remindersEnabled: boolean;
   reminderTime: string;
   trackingStartDate: string;
+  soundEnabled: boolean;
 };

@@ -3,22 +3,31 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { getDatabase } from '../database/client';
 import { getSchedule, getSettings, listSessions, saveSchedulePeriod, saveSession, saveSettings } from '../database/repositories';
-import { WorkoutSession } from '../domain/models';
+import { localDateString } from '../domain/dates';
+import { cancelReminders, scheduleReminders } from './notifications';
+import { BACKUP_VERSION, migrateBackup } from './backupFormat';
 
-export const BACKUP_VERSION = 1;
+export { BACKUP_VERSION };
+
 export const exportBackup = async () => {
   const backup = { schemaVersion: BACKUP_VERSION, exportedAt: new Date().toISOString(), sessions: await listSessions(true), settings: await getSettings(), schedules: await getSchedule() };
-  const uri = `${FileSystem.cacheDirectory}icndy-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const uri = `${FileSystem.cacheDirectory}icndy-backup-${localDateString()}.json`;
   await FileSystem.writeAsStringAsync(uri, JSON.stringify(backup, null, 2));
-  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/json', dialogTitle: 'Share ICNDY backup' });
+  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/json', dialogTitle: 'Compartilhar backup do ICNDY' });
   return uri;
 };
+
 export const restoreBackup = async () => {
   const selection = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
   if (selection.canceled) return false;
   const content = await FileSystem.readAsStringAsync(selection.assets[0].uri);
-  const backup = JSON.parse(content) as { schemaVersion: number; sessions: WorkoutSession[]; settings: Parameters<typeof saveSettings>[0]; schedules: Awaited<ReturnType<typeof getSchedule>> };
-  if (backup.schemaVersion !== BACKUP_VERSION || !Array.isArray(backup.sessions) || !backup.settings || !Array.isArray(backup.schedules)) throw new Error('This file is not a supported ICNDY backup.');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('Este arquivo não é um backup do ICNDY compatível.');
+  }
+  const backup = migrateBackup(parsed);
   const db = await getDatabase();
   await db.withTransactionAsync(async () => {
     await db.execAsync('DELETE FROM workout_sessions; DELETE FROM app_settings; DELETE FROM training_schedule_periods;');
@@ -26,5 +35,12 @@ export const restoreBackup = async () => {
     await saveSettings(backup.settings);
     for (const period of backup.schedules) await saveSchedulePeriod(period);
   });
+  try {
+    const latest = backup.schedules.reduce<(typeof backup.schedules)[number] | undefined>((last, period) => (!last || period.effectiveFrom >= last.effectiveFrom ? period : last), undefined);
+    if (backup.settings.remindersEnabled && latest) await scheduleReminders(latest.weekdays, backup.settings.reminderTime);
+    else await cancelReminders();
+  } catch {
+    // Lembretes são opcionais; falha aqui não invalida a restauração.
+  }
   return true;
 };
