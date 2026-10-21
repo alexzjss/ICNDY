@@ -10,7 +10,11 @@ import { repsPerRound, sessionTitle } from '../../domain/presets';
 import { additionalRepsFromPartial, totalReps as computeTotal } from '../../domain/scoring';
 import { PartialPicker } from '../../features/session/PartialPicker';
 import { RpePicker } from '../../features/session/RpePicker';
+import { targetSummary } from '../../features/session/target';
 import { SplitsChart } from '../../features/session/SplitsChart';
+import { ShareResultModal } from '../../features/share/ShareResultModal';
+import { streakIncluding } from '../../features/share/shareResult';
+import { formatDayMonth } from '../../domain/dates';
 import { colors, fonts, gradients } from '../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -18,7 +22,7 @@ export default function SummaryScreen() {
   const router = useRouter();
   const toast = useToast();
   const reduced = useReducedMotion();
-  const { active, sessions, finishSession, discardSession } = useApp();
+  const { active, sessions, schedule, finishSession, discardSession } = useApp();
   const sessionRef = useRef(active);
   if (active) sessionRef.current = active;
   const session = sessionRef.current;
@@ -28,6 +32,7 @@ export default function SummaryScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [confetti, setConfetti] = useState(0);
+  const [sharing, setSharing] = useState(false);
   const wasPr = useRef(false);
 
   const additional = session ? additionalRepsFromPartial(session.movements, partial) : 0;
@@ -98,6 +103,7 @@ export default function SummaryScreen() {
     ]);
 
   const perRound = repsPerRound(session);
+  const goal = targetSummary(session.targetRounds, session.completedRounds);
 
   return (
     <View style={styles.root}>
@@ -112,6 +118,7 @@ export default function SummaryScreen() {
             <AnimatedNumber value={additional} fontSize={64} duration={500} color={colors.muted} style={styles.extra} />
           </View>
           <Text variant="caption" align="center">{`${total} reps no total · ${perRound} reps por round`}</Text>
+          {goal ? <Text variant="caption" align="center" color={goal.hit ? colors.success : colors.muted}>{goal.text}</Text> : null}
           <Animated.View style={[styles.badgeWrap, badgeStyle]} pointerEvents="none">
             <LinearGradient colors={gradients.accent} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.badge}>
               <Text style={styles.badgeText}>{pr ? 'NOVO PR' : 'PRIMEIRO PR'}</Text>
@@ -140,8 +147,25 @@ export default function SummaryScreen() {
         </Card>
 
         <Button size="lg" icon="checkmark" loading={saving} onPress={save}>Salvar resultado</Button>
+        <Button variant="secondary" icon="share-social" disabled={saving} onPress={() => setSharing(true)}>Compartilhar</Button>
         <Button variant="ghost" disabled={saving} onPress={discard}>Descartar treino</Button>
       </Screen>
+      <ShareResultModal
+        visible={sharing}
+        onClose={() => setSharing(false)}
+        data={{
+          title: sessionTitle(session),
+          dateLabel: formatDayMonth(session.localDate),
+          rounds: session.completedRounds,
+          additional,
+          totalReps: total,
+          splits: session.roundSplitsMs,
+          rpe,
+          goalText: goal?.text,
+          isPr,
+          streak: streakIncluding(sessions, schedule, session),
+        }}
+      />
       <Confetti trigger={confetti} />
     </View>
   );

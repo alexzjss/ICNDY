@@ -1,7 +1,8 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
+  Easing,
   FadeInDown,
   useAnimatedStyle,
   useReducedMotion,
@@ -9,24 +10,48 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-/** Haptic seguro (ignora falhas/plataformas sem suporte). */
-export const haptic = {
-  light: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined),
-  medium: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined),
-  heavy: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined),
-  select: () => void Haptics.selectionAsync().catch(() => undefined),
-  success: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined),
-  warning: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined),
+let hapticsOn = true;
+/** Liga/desliga todos os haptics do app (preferência `hapticsEnabled`). */
+export const setHapticsEnabled = (flag: boolean) => {
+  hapticsOn = flag;
+};
+/** Sincroniza o módulo de haptics com as configurações carregadas. Chame uma vez no provider/layout raiz. */
+export const useSyncHaptics = (settings: { hapticsEnabled?: boolean } | undefined) => {
+  const flag = settings?.hapticsEnabled ?? true;
+  setHapticsEnabled(flag);
+  useEffect(() => {
+    setHapticsEnabled(flag);
+  }, [flag]);
+};
+const fire = (run: () => Promise<unknown>) => () => {
+  if (hapticsOn) void run().catch(() => undefined);
 };
 
-export const SPRING = { damping: 14, stiffness: 220, mass: 0.7 } as const;
+/** Haptic seguro (ignora falhas/plataformas sem suporte e respeita a preferência). */
+export const haptic = {
+  light: fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
+  medium: fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
+  heavy: fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)),
+  select: fire(() => Haptics.selectionAsync()),
+  success: fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
+  warning: fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
+};
 
-/** Animação de entrada em cascata (FadeInDown.delay(index*60).springify()). */
-export const staggerEntering = (index = 0, step = 60) =>
-  FadeInDown.delay(index * step).springify().damping(18);
+/** Spring amortecido (sem overshoot visível). */
+export const SPRING = { damping: 22, stiffness: 260, mass: 0.7 } as const;
+
+/** Máximo de itens escalonados; os demais entram juntos com o último. */
+export const STAGGER_MAX = 6;
+
+/** Entrada curta: fade + desloca 8px, 30ms por item (teto de 6), sem spring. */
+export const staggerEntering = (index = 0, step = 30) =>
+  FadeInDown.delay(Math.min(index, STAGGER_MAX) * step)
+    .duration(220)
+    .easing(Easing.out(Easing.quad))
+    .withInitialValues({ opacity: 0, transform: [{ translateY: 8 }] });
 
 /** Hook de escala por pressão: devolve estilo animado e handlers para Pressable. */
-export const usePressScale = (to = 0.96) => {
+export const usePressScale = (to = 0.98) => {
   const reduced = useReducedMotion();
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -42,13 +67,13 @@ export const usePressScale = (to = 0.96) => {
 };
 
 export type StaggerInProps = {
-  /** Posição na cascata (atraso = index * 60ms). */
+  /** Posição na cascata (atraso = index * 30ms, máx. 6). */
   index?: number;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 };
 
-/** Envolve o conteúdo com entrada em cascata (fade + sobe com spring). */
+/** Envolve o conteúdo com entrada em cascata (fade + sobe pouco). */
 export const StaggerIn = ({ index = 0, style, children }: StaggerInProps) => {
   const reduced = useReducedMotion();
   return (

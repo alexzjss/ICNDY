@@ -12,7 +12,7 @@ const Day = ({ index, on, onToggle }: { index: number; on: boolean; onToggle: ()
   const p = useSharedValue(on ? 1 : 0);
   const press = useSharedValue(1);
   useEffect(() => {
-    p.value = reduced ? (on ? 1 : 0) : withSpring(on ? 1 : 0, { damping: 14, stiffness: 240 });
+    p.value = reduced ? (on ? 1 : 0) : withSpring(on ? 1 : 0, { damping: 24, stiffness: 280 });
   }, [on, reduced, p]);
   const style = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(p.value, [0, 1], [colors.surfaceRaised, colors.accent]),
@@ -25,7 +25,7 @@ const Day = ({ index, on, onToggle }: { index: number; on: boolean; onToggle: ()
       accessibilityLabel={WEEKDAY_NAMES[index]}
       accessibilityState={{ selected: on }}
       onPressIn={() => {
-        press.value = reduced ? 1 : withSpring(0.88, SPRING);
+        press.value = reduced ? 1 : withSpring(0.94, SPRING);
       }}
       onPressOut={() => {
         press.value = reduced ? 1 : withSpring(1, SPRING);

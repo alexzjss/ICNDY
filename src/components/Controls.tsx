@@ -34,7 +34,7 @@ export type StepperProps = {
 type StepButtonProps = { icon: 'add' | 'remove'; disabled: boolean; color: string; onHold: (start: boolean) => void; label: string };
 
 const StepButton = ({ icon, disabled, color, onHold, label }: StepButtonProps) => {
-  const press = usePressScale(0.88);
+  const press = usePressScale(0.94);
   return (
     <AnimatedPressable
       accessibilityRole="button"
@@ -69,7 +69,7 @@ export const Stepper = ({ value, onChange, min = 0, max = 99, step = 1, unit, co
   };
   useEffect(() => stop, []);
   useEffect(() => {
-    if (!reduced) bump.value = withSequence(withTiming(1.15, { duration: 70 }), withSpring(1, SPRING));
+    if (!reduced) bump.value = withSequence(withTiming(1.06, { duration: 60 }), withSpring(1, SPRING));
   }, [value, reduced, bump]);
 
   const apply = (dir: 1 | -1) => {
@@ -129,7 +129,7 @@ export function SegmentedControl<T extends string | number>({ options, value, on
   const x = useSharedValue(index * segment);
 
   useEffect(() => {
-    x.value = reduced ? index * segment : withSpring(index * segment, { damping: 18, stiffness: 240 });
+    x.value = reduced ? index * segment : withSpring(index * segment, { damping: 26, stiffness: 260 });
   }, [index, segment, reduced, x]);
 
   const indicator = useAnimatedStyle(() => ({ width: segment, transform: [{ translateX: x.value }] }));
@@ -176,7 +176,7 @@ export const Toggle = ({ value, onValueChange, disabled, color = colors.accent, 
   const reduced = useReducedMotion();
   const p = useSharedValue(value ? 1 : 0);
   useEffect(() => {
-    p.value = reduced ? (value ? 1 : 0) : withSpring(value ? 1 : 0, { damping: 16, stiffness: 260 });
+    p.value = reduced ? (value ? 1 : 0) : withSpring(value ? 1 : 0, { damping: 24, stiffness: 280 });
   }, [value, reduced, p]);
   const track = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(p.value, [0, 1], [colors.line, color]) }));
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: p.value * 22 }] }));

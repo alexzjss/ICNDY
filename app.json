@@ -14,7 +14,7 @@
     "android": {
       "package": "com.icndy.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0B0D",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/icndy.png"
       },
       "edgeToEdgeEnabled": true,
@@ -41,9 +41,9 @@
           "image": "./assets/images/icndy.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0B0B0D",
+          "backgroundColor": "#000000",
           "dark": {
-            "backgroundColor": "#0B0B0D"
+            "backgroundColor": "#000000"
           }
         }
       ],

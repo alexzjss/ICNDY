@@ -11,8 +11,12 @@ import { additionalRepsFromPartial } from '../../domain/scoring';
 import { formatDuration, RPE_COLORS, RPE_LABELS } from '../../features/session/format';
 import { PartialPicker } from '../../features/session/PartialPicker';
 import { partialFromAdditional } from '../../features/session/partial';
+import { targetSummary } from '../../features/session/target';
 import { RpePicker } from '../../features/session/RpePicker';
 import { SplitsChart } from '../../features/session/SplitsChart';
+import { ShareResultModal } from '../../features/share/ShareResultModal';
+import { streakIncluding } from '../../features/share/shareResult';
+import { findPersonalBest } from '../../domain/pace';
 import { colors, fonts } from '../../theme';
 
 const realDurationMs = (session: WorkoutSession) => {
@@ -27,10 +31,11 @@ export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
-  const { sessions, refresh } = useApp();
+  const { sessions, schedule, refresh } = useApp();
   const session = sessions.find((item) => item.id === id);
 
   const [editing, setEditing] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [rounds, setRounds] = useState(0);
   const [partial, setPartial] = useState<PartialProgress>({ movementIndex: 0, reps: 0 });
@@ -99,6 +104,9 @@ export default function SessionDetailScreen() {
       },
     ]);
 
+  const goal = targetSummary(session.targetRounds, session.completedRounds);
+  const best = findPersonalBest(sessions.filter((item) => item.localDate <= session.localDate), session.comparisonKey);
+  const isPr = best?.id === session.id;
   const durationLabel = session.completionType === 'ended-early' ? `Encerrado em ${formatDuration(realDurationMs(session))}` : `${Math.round(session.durationSeconds / 60)} min completos`;
 
   return (
@@ -143,6 +151,7 @@ export default function SessionDetailScreen() {
             <Text variant="caption">{`${session.totalReps} reps · ${perRound} por round`}</Text>
             <View style={styles.chips}>
               <Chip icon="time-outline" label={durationLabel} />
+              {goal ? <Chip icon="flag-outline" label={goal.text} color={goal.hit ? colors.success : colors.muted} /> : null}
               {session.rpe ? <Chip icon="flame-outline" label={`RPE ${session.rpe} · ${RPE_LABELS[session.rpe]}`} color={RPE_COLORS[session.rpe - 1]} /> : null}
             </View>
           </Card>
@@ -168,7 +177,24 @@ export default function SessionDetailScreen() {
             </Card>
           ) : null}
 
+          <Button variant="secondary" icon="share-social" onPress={() => setSharing(true)}>Compartilhar</Button>
           <Button variant="ghost" icon="trash-outline" onPress={remove}>Excluir treino</Button>
+          <ShareResultModal
+            visible={sharing}
+            onClose={() => setSharing(false)}
+            data={{
+              title: sessionTitle(session),
+              dateLabel: formatDayMonth(session.localDate),
+              rounds: session.completedRounds,
+              additional: session.additionalReps,
+              totalReps: session.totalReps,
+              splits: session.roundSplitsMs,
+              rpe: session.rpe,
+              goalText: goal?.text,
+              isPr: isPr,
+              streak: streakIncluding(sessions, schedule, session),
+            }}
+          />
         </>
       )}
     </Screen>

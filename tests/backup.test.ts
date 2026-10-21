@@ -31,11 +31,17 @@ describe('backup migration', () => {
     expect(result.sessions[0].rpe).toBe(8);
     expect(result.sessions[0].partial).toEqual({ movementIndex: 1, reps: 4 });
   });
+  it('accepts and validates targetRounds', () => {
+    const mk = (targetRounds: unknown) => ({ ...v1(), schemaVersion: 2, sessions: [makeSession('2025-01-06', { targetRounds: targetRounds as number })] });
+    expect(migrateBackup(mk(15)).sessions[0].targetRounds).toBe(15);
+    expect(migrateBackup(mk(undefined)).sessions[0].targetRounds).toBeUndefined();
+    expect(migrateBackup(v1()).sessions[0].targetRounds).toBeUndefined();
+    for (const bad of [0, 201, 1.5, '10']) expect(() => migrateBackup(mk(bad))).toThrow('meta de rounds');
+  });
   it('uses legacy soundEnabled when soundsEnabled is absent, and ignores unknown keys', () => {
-    const raw = { ...v1(), settings: { ...v1().settings, soundEnabled: false, hapticsEnabled: true, themeIntensity: 'vibrant' } };
+    const raw = { ...v1(), settings: { ...v1().settings, soundEnabled: false, themeIntensity: 'vibrant' } };
     const { settings } = migrateBackup(raw);
     expect(settings.soundsEnabled).toBe(false);
-    expect(settings).not.toHaveProperty('hapticsEnabled');
     const both = migrateBackup({ ...v1(), settings: { soundEnabled: false, soundsEnabled: true } });
     expect(both.settings.soundsEnabled).toBe(true);
   });

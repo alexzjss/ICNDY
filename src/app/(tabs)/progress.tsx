@@ -14,6 +14,7 @@ import { AchievementList } from '../../features/progress/AchievementList';
 import { ConsistencyHeatmap } from '../../features/progress/ConsistencyHeatmap';
 import { EvolutionChart } from '../../features/progress/EvolutionChart';
 import { History } from '../../features/progress/History';
+import { VolumeCard } from '../../features/volume/VolumeCard';
 import { colors } from '../../theme';
 
 const Metric = ({ label, value, suffix }: { label: string; value: number; suffix?: string }) => (
@@ -79,6 +80,9 @@ export default function ProgressScreen() {
               <Text variant="label">Consistência · 16 semanas</Text>
               <ConsistencyHeatmap sessions={sessions} schedule={schedule} today={today} />
             </Card>
+          </StaggerIn>
+          <StaggerIn index={4}>
+            <VolumeCard sessions={sessions} />
           </StaggerIn>
         </>
       )}

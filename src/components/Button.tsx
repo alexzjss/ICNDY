@@ -58,7 +58,7 @@ export const Button = ({
   style,
   accessibilityLabel,
 }: ButtonProps) => {
-  const press = usePressScale(0.95);
+  const press = usePressScale(0.98);
   const inactive = disabled || loading;
   const color = labelColor(variant);
   const content = loading ? (
@@ -148,7 +148,7 @@ export const HoldButton = ({
 }: HoldButtonProps) => {
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
-  const press = usePressScale(0.95);
+  const press = usePressScale(0.98);
   const tint = variant === 'danger' ? colors.danger : colors.text;
 
   useEffect(() => () => {
@@ -265,7 +265,7 @@ export const IconButton = ({
   disabled = false,
   style,
 }: IconButtonProps) => {
-  const press = usePressScale(0.88);
+  const press = usePressScale(0.94);
   return (
     <AnimatedPressable
       accessibilityRole="button"

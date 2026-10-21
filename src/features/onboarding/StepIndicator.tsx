@@ -8,7 +8,7 @@ const Segment = ({ state }: { state: 'done' | 'current' | 'todo' }) => {
   const target = state === 'current' ? 1 : state === 'done' ? 0.5 : 0;
   const p = useSharedValue(target);
   useEffect(() => {
-    p.value = reduced ? target : withSpring(target, { damping: 16, stiffness: 200 });
+    p.value = reduced ? target : withSpring(target, { damping: 26, stiffness: 240 });
   }, [target, reduced, p]);
   const style = useAnimatedStyle(() => ({
     flexGrow: 1 + p.value * 1.5,

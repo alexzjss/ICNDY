@@ -29,6 +29,7 @@ const mapSession = (row: SessionRow): WorkoutSession => ({
   roundSplitsMs: parseJson<number[]>(row.round_splits_json, []),
   rpe: row.rpe === null || row.rpe === undefined ? undefined : Number(row.rpe),
   partial: parseJson<WorkoutSession['partial']>(row.partial_json, undefined),
+  targetRounds: row.target_rounds === null || row.target_rounds === undefined ? undefined : Number(row.target_rounds),
 });
 
 export const listSessions = async (completedOnly = false) => {
@@ -49,12 +50,12 @@ export const getActiveSession = async () => {
 export const saveSession = async (session: WorkoutSession) => {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT OR REPLACE INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms, round_splits_json, rpe, partial_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO workout_sessions (id, created_at, started_at, finished_at, updated_at, status, preset_id, duration_seconds, movements_json, completed_rounds, additional_reps, total_reps, comparison_key, completion_type, notes, local_date, paused_at, paused_duration_ms, elapsed_before_pause_ms, round_splits_json, rpe, partial_json, target_rounds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.id, session.createdAt, session.startedAt, session.finishedAt ?? null, session.updatedAt, session.status, session.presetId,
     session.durationSeconds, JSON.stringify(session.movements), session.completedRounds, session.additionalReps, session.totalReps,
     session.comparisonKey, session.completionType ?? null, session.notes ?? null, session.localDate, session.pausedAt ?? null,
     session.pausedDurationMs, session.elapsedBeforePauseMs,
-    JSON.stringify(session.roundSplitsMs ?? []), session.rpe ?? null, session.partial ? JSON.stringify(session.partial) : null,
+    JSON.stringify(session.roundSplitsMs ?? []), session.rpe ?? null, session.partial ? JSON.stringify(session.partial) : null, session.targetRounds ?? null,
   );
 };
 /** Aplica um patch, recalcula totalReps e persiste. Retorna a sessão atualizada (ou undefined se não existe). */

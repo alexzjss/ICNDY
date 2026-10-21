@@ -48,6 +48,8 @@ export type WorkoutSession = WorkoutConfig & {
   /** Esforço percebido 1-10. */
   rpe?: number;
   partial?: PartialProgress;
+  /** Meta de rounds opcional (1-200). */
+  targetRounds?: number;
 };
 
 export type SchedulePeriod = {
@@ -62,4 +64,5 @@ export type AppSettings = {
   reminderTime: string;
   trackingStartDate: string;
   soundsEnabled: boolean;
+  hapticsEnabled: boolean;
 };

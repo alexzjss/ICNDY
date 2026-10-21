@@ -66,8 +66,8 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         {toast ? (
           <Animated.View
             key={toast.id}
-            entering={reduced ? undefined : FadeInDown.springify().damping(16)}
-            exiting={reduced ? undefined : FadeOutDown.duration(200)}
+            entering={reduced ? undefined : FadeInDown.duration(200)}
+            exiting={reduced ? undefined : FadeOutDown.duration(150)}
             style={[
               styles.toast,
               top

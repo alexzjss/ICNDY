@@ -7,9 +7,9 @@ describe('normalizeSettings', () => {
     expect(normalizeSettings([]).onboardingComplete).toBe(false);
   });
   it('reads soundsEnabled written by the main branch and ignores its extra keys', () => {
-    const result = normalizeSettings({ soundsEnabled: false, hapticsEnabled: true, timerDisplay: 'circular', workoutLayout: 'compact', themeIntensity: 'contrast', reduceMotion: true, onboardingComplete: true });
-    expect(result).toMatchObject({ soundsEnabled: false, onboardingComplete: true });
-    expect(Object.keys(result).sort()).toEqual(['onboardingComplete', 'reminderTime', 'remindersEnabled', 'soundsEnabled', 'trackingStartDate']);
+    const result = normalizeSettings({ soundsEnabled: false, hapticsEnabled: false, timerDisplay: 'circular', workoutLayout: 'compact', themeIntensity: 'contrast', reduceMotion: true, onboardingComplete: true });
+    expect(result).toMatchObject({ soundsEnabled: false, hapticsEnabled: false, onboardingComplete: true });
+    expect(Object.keys(result).sort()).toEqual(['hapticsEnabled', 'onboardingComplete', 'reminderTime', 'remindersEnabled', 'soundsEnabled', 'trackingStartDate']);
   });
   it('falls back to the legacy soundEnabled only when soundsEnabled is missing', () => {
     expect(normalizeSettings({ soundEnabled: false }).soundsEnabled).toBe(false);

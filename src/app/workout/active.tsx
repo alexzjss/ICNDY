@@ -17,17 +17,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState, haptic, HoldButton, IconButton, Screen, useToast } from '../../components';
 import { useApp } from '../../context/AppContext';
 import { findPersonalBest } from '../../domain/pace';
+import { isBlazing, liquidColorFor } from '../../domain/speed';
 import { sessionTitle } from '../../domain/presets';
 import { totalReps } from '../../domain/scoring';
 import { activeElapsedMs, formatRemaining, isExpired, remainingMs } from '../../domain/timer';
 import { Hud } from '../../features/workout/Hud';
 import { Liquid, Ripple } from '../../features/workout/Liquid';
 import { CountdownView, PauseOverlay, TimeUp } from '../../features/workout/Overlays';
-import { PaceChip } from '../../features/workout/PaceChip';
+import { AvgDeltaChip, PaceChip } from '../../features/workout/PaceChip';
 import { timerStateOf } from '../../features/workout/session';
 import { cancelWorkoutEnd, scheduleWorkoutEnd } from '../../services/notifications';
 import { playBeep, preloadSounds, releaseSounds } from '../../services/sounds';
-import { colors, fonts, roundColor, withAlpha } from '../../theme';
+import { colors, fonts, withAlpha } from '../../theme';
 
 type Countdown = number | 'go' | null;
 
@@ -54,10 +55,11 @@ export default function ActiveWorkoutScreen() {
   const [lastTapAt, setLastTapAt] = useState(0);
 
   // Valores compartilhados (UI thread)
-  const initialRounds = active?.completedRounds ?? 0;
+  const initialColor = liquidColorFor(active?.roundSplitsMs ?? []);
   const fill = useSharedValue(1);
-  const colorFrom = useSharedValue(roundColor(initialRounds));
-  const colorTo = useSharedValue(roundColor(initialRounds));
+  const colorFrom = useSharedValue(initialColor);
+  const colorTo = useSharedValue(initialColor);
+  const targetFill = useSharedValue(0);
   const flood = useSharedValue(1);
   const fx = useSharedValue(0);
   const fy = useSharedValue(0);
@@ -258,7 +260,7 @@ export default function ActiveWorkoutScreen() {
     sessionRef.current = next;
     saveActive(next).catch(() => undefined);
     haptic.warning();
-    celebrate(fx.value, 99999, roundColor(rounds));
+    celebrate(fx.value, 99999, liquidColorFor(next.roundSplitsMs));
     toast.show({ message: `Round ${rounds + 1} desfeito`, duration: 2500, offset: 28 });
   }, [saveActive, celebrate, toast, fx]);
 
@@ -280,7 +282,7 @@ export default function ActiveWorkoutScreen() {
       sessionRef.current = next;
       saveActive(next).catch(() => undefined);
       haptic.medium();
-      celebrate(x, y, roundColor(rounds));
+      celebrate(x, y, liquidColorFor(next.roundSplitsMs));
       setLastTapAt(now);
       toast.show({ message: `Round ${rounds} registrado`, actionLabel: 'Desfazer', onAction: undo, duration: 4000, offset: 28 });
     },
@@ -321,6 +323,13 @@ export default function ActiveWorkoutScreen() {
     return () => sub.remove();
   }, [pause]);
 
+  // Linha da meta: nível onde o líquido estará quando o próximo round fechar no ritmo da meta.
+  const targetRounds = active?.targetRounds;
+  const targetLevel = targetRounds ? 1 - ((active?.completedRounds ?? 0) + 1) / targetRounds : 0;
+  useEffect(() => {
+    targetFill.value = reduced ? targetLevel : withTiming(targetLevel, { duration: 500, easing: Easing.out(Easing.cubic) });
+  }, [targetLevel, reduced, targetFill]);
+
   const timer = useMemo(
     () => (active ? timerStateOf(active) : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,7 +353,7 @@ export default function ActiveWorkoutScreen() {
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill} collapsable={false} accessible accessibilityLabel="Toque para registrar um round. Segure para desfazer.">
           {hud('light')}
-          <Liquid fill={fill} colorFrom={colorFrom} colorTo={colorTo} flood={flood} fx={fx} fy={fy} boost={boost}>
+          <Liquid fill={fill} colorFrom={colorFrom} colorTo={colorTo} flood={flood} fx={fx} fy={fy} boost={boost} blazing={isBlazing(active.roundSplitsMs)} targetFill={targetFill} targetLabel={targetRounds && targetLevel > 0 ? `META R${targetRounds}` : undefined}>
             {hud('dark')}
           </Liquid>
           <Ripple fx={fx} fy={fy} progress={ripple} />
@@ -353,6 +362,7 @@ export default function ActiveWorkoutScreen() {
 
       <View pointerEvents="none" style={[styles.pace, { bottom: insets.bottom + 96 }]}>
         <PaceChip pr={pr} timer={timer} splits={active.roundSplitsMs} lastTapAt={lastTapAt} />
+        <AvgDeltaChip splits={active.roundSplitsMs} lastTapAt={lastTapAt} />
       </View>
 
       {paused ? <PauseOverlay onResume={resume} remaining={formatRemaining(remainingMs(timer, Date.now()))} /> : null}
@@ -390,7 +400,7 @@ export default function ActiveWorkoutScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  pace: { position: 'absolute', left: 0, right: 0 },
+  pace: { position: 'absolute', left: 0, right: 0, gap: 6 },
   bar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, zIndex: 20 },
   title: { backgroundColor: withAlpha(colors.bg, 0.72), paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, flexShrink: 1 },
   titleText: { fontFamily: fonts.displaySemi, fontSize: 18, lineHeight: 22, color: colors.text, letterSpacing: 0.5 },
