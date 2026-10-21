@@ -10,6 +10,7 @@ import { repsPerRound, sessionTitle } from '../../domain/presets';
 import { additionalRepsFromPartial, totalReps as computeTotal } from '../../domain/scoring';
 import { PartialPicker } from '../../features/session/PartialPicker';
 import { RpePicker } from '../../features/session/RpePicker';
+import { targetSummary } from '../../features/session/target';
 import { SplitsChart } from '../../features/session/SplitsChart';
 import { colors, fonts, gradients } from '../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -98,6 +99,7 @@ export default function SummaryScreen() {
     ]);
 
   const perRound = repsPerRound(session);
+  const goal = targetSummary(session.targetRounds, session.completedRounds);
 
   return (
     <View style={styles.root}>
@@ -112,6 +114,7 @@ export default function SummaryScreen() {
             <AnimatedNumber value={additional} fontSize={64} duration={500} color={colors.muted} style={styles.extra} />
           </View>
           <Text variant="caption" align="center">{`${total} reps no total · ${perRound} reps por round`}</Text>
+          {goal ? <Text variant="caption" align="center" color={goal.hit ? colors.success : colors.muted}>{goal.text}</Text> : null}
           <Animated.View style={[styles.badgeWrap, badgeStyle]} pointerEvents="none">
             <LinearGradient colors={gradients.accent} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.badge}>
               <Text style={styles.badgeText}>{pr ? 'NOVO PR' : 'PRIMEIRO PR'}</Text>

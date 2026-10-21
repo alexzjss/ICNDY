@@ -87,6 +87,12 @@ const normalizeSession = (raw: unknown, index: number): WorkoutSession => {
     rpe = raw.rpe;
   }
 
+  let targetRounds: number | undefined;
+  if (raw.targetRounds != null) {
+    if (!isInt(raw.targetRounds) || raw.targetRounds < 1 || raw.targetRounds > 200) return fail(`${label}: a meta de rounds deve ser um inteiro de 1 a 200.`);
+    targetRounds = raw.targetRounds;
+  }
+
   let partial: WorkoutSession['partial'];
   if (raw.partial != null) {
     const value = raw.partial;
@@ -118,6 +124,7 @@ const normalizeSession = (raw: unknown, index: number): WorkoutSession => {
     roundSplitsMs,
     rpe,
     partial,
+    targetRounds,
   };
 };
 

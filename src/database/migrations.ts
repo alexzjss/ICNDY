@@ -36,6 +36,11 @@ export const MIGRATIONS: Migration[] = [
       'ALTER TABLE workout_sessions ADD COLUMN partial_json TEXT',
     ],
   },
+  {
+    // v3: meta de rounds opcional.
+    version: 3,
+    statements: ['ALTER TABLE workout_sessions ADD COLUMN target_rounds INTEGER'],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

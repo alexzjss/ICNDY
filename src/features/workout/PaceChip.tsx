@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { WorkoutSession } from '../../domain/models';
 import { prRoundsAt, roundDeltaMs } from '../../domain/pace';
 import { activeElapsedMs, TimerState } from '../../domain/timer';
+import { roundDeltaVsAverageMs, roundSpeedRatio, SPEED_COLORS, speedTier } from '../../domain/speed';
 import { formatDuration } from '../session/format';
 import { colors, fonts, withAlpha } from '../../theme';
 
@@ -67,5 +68,30 @@ PaceChip.displayName = 'PaceChip';
 
 const styles = StyleSheet.create({
   chip: { alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, backgroundColor: withAlpha(colors.bg, 0.82) },
+  avg: { alignSelf: 'center', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1, backgroundColor: withAlpha(colors.bg, 0.82) },
+  avgText: { fontFamily: fonts.displaySemi, fontSize: 15, lineHeight: 18, letterSpacing: 0.5 },
   text: { fontFamily: fonts.displaySemi, fontSize: 22, lineHeight: 26, letterSpacing: 0.5 },
 });
+
+/** "−6s vs média": discreto, 6s após cada round (a partir do 2º). */
+export const AvgDeltaChip = memo(({ splits, lastTapAt }: { splits: number[]; lastTapAt: number }) => {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!lastTapAt) return;
+    setVisible(true);
+    const id = setTimeout(() => setVisible(false), 6000);
+    return () => clearTimeout(id);
+  }, [lastTapAt]);
+  const delta = roundDeltaVsAverageMs(splits);
+  const tier = speedTier(roundSpeedRatio(splits));
+  if (!visible || delta === undefined || !tier) return null;
+  const secs = Math.round(delta / 1000);
+  const label = secs === 0 ? '0s vs média' : `${secs < 0 ? '−' : '+'}${Math.abs(secs)}s vs média`;
+  const color = SPEED_COLORS[tier];
+  return (
+    <View pointerEvents="none" style={[styles.avg, { borderColor: withAlpha(color, 0.6) }]}>
+      <Text style={[styles.avgText, { color }]}>{label}</Text>
+    </View>
+  );
+});
+AvgDeltaChip.displayName = 'AvgDeltaChip';

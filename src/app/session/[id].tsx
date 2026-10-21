@@ -11,6 +11,7 @@ import { additionalRepsFromPartial } from '../../domain/scoring';
 import { formatDuration, RPE_COLORS, RPE_LABELS } from '../../features/session/format';
 import { PartialPicker } from '../../features/session/PartialPicker';
 import { partialFromAdditional } from '../../features/session/partial';
+import { targetSummary } from '../../features/session/target';
 import { RpePicker } from '../../features/session/RpePicker';
 import { SplitsChart } from '../../features/session/SplitsChart';
 import { colors, fonts } from '../../theme';
@@ -99,6 +100,7 @@ export default function SessionDetailScreen() {
       },
     ]);
 
+  const goal = targetSummary(session.targetRounds, session.completedRounds);
   const durationLabel = session.completionType === 'ended-early' ? `Encerrado em ${formatDuration(realDurationMs(session))}` : `${Math.round(session.durationSeconds / 60)} min completos`;
 
   return (
@@ -143,6 +145,7 @@ export default function SessionDetailScreen() {
             <Text variant="caption">{`${session.totalReps} reps · ${perRound} por round`}</Text>
             <View style={styles.chips}>
               <Chip icon="time-outline" label={durationLabel} />
+              {goal ? <Chip icon="flag-outline" label={goal.text} color={goal.hit ? colors.success : colors.muted} /> : null}
               {session.rpe ? <Chip icon="flame-outline" label={`RPE ${session.rpe} · ${RPE_LABELS[session.rpe]}`} color={RPE_COLORS[session.rpe - 1]} /> : null}
             </View>
           </Card>
